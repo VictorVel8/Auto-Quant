@@ -1,0 +1,16 @@
+__pycache__/
+*.pyc
+.venv/
+.env
+.pytest_cache/
+.ruff_cache/
+.hypothesis/
+.pyright/
+dist/
+*.egg-info/
+# Licensed market data and stores never enter git (fixtures excepted)
+/data/
+*.parquet
+*.csv.gz
+*.sqlite
+!tests/fixtures/**

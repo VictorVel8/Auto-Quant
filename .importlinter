@@ -1,0 +1,27 @@
+[importlinter]
+root_package = alpha_factory
+
+[importlinter:contract:sealed]
+name = Sealed packages never import the agent loop
+type = forbidden
+source_modules =
+    alpha_factory.data
+    alpha_factory.sandbox
+    alpha_factory.dsl
+    alpha_factory.eval
+    alpha_factory.backtest
+forbidden_modules =
+    alpha_factory.agents
+    alpha_factory.orchestrator
+    alpha_factory.research
+
+[importlinter:contract:contracts-leaf]
+name = Contracts depend on nothing inside the package
+type = forbidden
+source_modules = alpha_factory.contracts
+forbidden_modules =
+    alpha_factory.data
+    alpha_factory.dsl
+    alpha_factory.eval
+    alpha_factory.agents
+    alpha_factory.orchestrator

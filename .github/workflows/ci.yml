@@ -1,0 +1,20 @@
+name: ci
+on: [push, pull_request]
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv python install 3.12
+      - run: uv sync --all-groups
+      - run: uv run ruff check .
+      - run: uv run ruff format --check .
+      - run: uv run pyright
+      - run: uv run lint-imports
+      - run: python3 scripts/data_guard.py
+      # Unit, property, integration and the JSON Schema snapshots (syrupy). A schema change
+      # fails here until `pytest --snapshot-update` is run on purpose.
+      - run: uv run pytest

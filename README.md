@@ -1,0 +1,26 @@
+# Alpha Factory
+
+A personal, open-source research system that discovers intraday trading signals for US equities
+with minimal human input. An LLM proposes factor hypotheses as expressions in a restricted DSL;
+sealed, human-written code evaluates them on historical data; validated evidence accumulates in a
+research store that steers the next proposals.
+
+> **Disclaimer:** This is a research project, not investment advice. Nothing here is a
+> recommendation to buy or sell any security. Trading involves risk of loss.
+
+## Status
+
+Plan 1 (foundations): repo, config, contracts, synthetic market, CLI. No real market data,
+no LLM calls, no evaluation logic yet.
+
+## Quick start
+
+```sh
+uv sync --all-groups
+uv run af --help
+uv run af synth build --out /tmp/synth --seed 7
+uv run pytest
+```
+
+No market data lives in this repo. Tests and CI use a synthetic market.
+See `docs/` for the architecture, contracts and the five invariants.
