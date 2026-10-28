@@ -19,7 +19,6 @@ Conventions:
   starts on the second session.
 """
 
-import subprocess
 from dataclasses import dataclass
 from datetime import UTC, date, datetime, timedelta
 from pathlib import Path
@@ -29,6 +28,7 @@ import polars as pl
 
 from alpha_factory.contracts.base import Horizon, Record
 from alpha_factory.contracts.data import BAR_SCHEMA, DataManifest, FileEntry
+from alpha_factory.gitinfo import git_commit
 from alpha_factory.hashing import sha256_canonical, sha256_file
 
 N_BARS = 13
@@ -77,16 +77,6 @@ class SyntheticFrames:
     bars: pl.DataFrame
     universe: pl.DataFrame
     sectors: pl.DataFrame
-
-
-def _git_commit() -> str:
-    try:
-        out = subprocess.run(
-            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
-        )
-    except (OSError, subprocess.CalledProcessError):
-        return "unknown"
-    return out.stdout.strip() or "unknown"
 
 
 def _weekdays(start: date, n: int) -> list[date]:
@@ -337,23 +327,23 @@ class SyntheticMarket:
                 .shift(1)
                 .rolling_mean(20, min_samples=1)
                 .over("ticker_id")
-                .alias("adv20_usd"),
-                pl.col("raw_close").shift(1).over("ticker_id").alias("prev_raw_close"),
+                .alias("adv_usd_20d"),
+                pl.col("raw_close").shift(1).over("ticker_id").alias("raw_prev_close"),
             )
-            .drop_nulls("adv20_usd")
+            .drop_nulls("adv_usd_20d")
+            .filter(pl.col("raw_prev_close") > min_price)
             .with_columns(
-                pl.col("adv20_usd")
+                pl.col("adv_usd_20d")
                 .rank("ordinal", descending=True)
                 .over("session_date")
                 .cast(pl.Int32)
                 .alias("rank")
             )
-            .with_columns(
-                ((pl.col("rank") <= top_n) & (pl.col("prev_raw_close") > min_price)).alias(
-                    "in_universe"
-                )
+            .filter(pl.col("rank") <= top_n)
+            .with_columns((pl.col("rank") <= 500).alias("tradable"))
+            .select(
+                ["session_date", "ticker_id", "rank", "adv_usd_20d", "raw_prev_close", "tradable"]
             )
-            .select(["session_date", "ticker_id", "adv20_usd", "rank", "in_universe"])
             .sort(["session_date", "rank"])
         )
 
@@ -400,7 +390,7 @@ class SyntheticMarket:
             bar_minutes=30,
             adjustment="forward",
             params_hash=params_hash,
-            code_commit=_git_commit(),
+            code_commit=git_commit(),
             created_at=BUILD_TIMESTAMP,
             files=files,
         )

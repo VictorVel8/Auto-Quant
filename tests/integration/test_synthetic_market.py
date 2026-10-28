@@ -102,7 +102,7 @@ def test_lifecycle_and_universe(synth_dir: Path) -> None:
         last = df.filter(pl.col("ticker_id") == ev.ticker_id)["session_date"].max()
         assert last == ev.session_date
         # Present in the universe before it delists, absent afterwards.
-        u = uni.filter((pl.col("ticker_id") == ev.ticker_id) & pl.col("in_universe"))
+        u = uni.filter(pl.col("ticker_id") == ev.ticker_id)
         assert u["session_date"].min() is not None
         assert cast(date, u["session_date"].max()) <= ev.session_date
         assert u.filter(pl.col("session_date") < ev.session_date).height > 0
@@ -115,7 +115,14 @@ def test_universe_is_point_in_time(synth_dir: Path) -> None:
     uni = pl.read_parquet(synth_dir / "universe.parquet")
     first_session = cast(date, bars(synth_dir)["session_date"].min())
     assert uni["session_date"].min() == first_session + timedelta(days=1)
-    assert set(uni.columns) == {"session_date", "ticker_id", "adv20_usd", "rank", "in_universe"}
+    assert set(uni.columns) == {
+        "session_date",
+        "ticker_id",
+        "rank",
+        "adv_usd_20d",
+        "raw_prev_close",
+        "tradable",
+    }
 
 
 def test_sectors(synth_dir: Path) -> None:

@@ -32,7 +32,9 @@ class MissingSettingError(RuntimeError):
 
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_prefix="AF_", env_file=".env", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_prefix="AF_", env_file=".env", extra="ignore", env_ignore_empty=True
+    )
 
     env: Literal["dev", "prod"] = "dev"
     data_dir: Path = Path("data")

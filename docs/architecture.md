@@ -22,7 +22,7 @@ data or the final evaluator.
 | `contracts` | Plan 1 | Every Pydantic model that crosses a boundary. Imports nothing else in the package. |
 | `settings`, `logging`, `ids`, `hashing`, `cli` | Plan 1 | Config, logs, prefixed ULIDs, canonical hashing, the `af` CLI |
 | `synthetic` | Plan 1 | Seeded synthetic market with planted answers |
-| `data` | Plan 2 | Massive flat files to Parquet, universe, manifest, QA |
+| `data` | Plan 2 | Massive flat files to Parquet, universe, manifest, QA; see `data.md` |
 | `sandbox`, `dsl`, `eval`, `backtest` | Plan 3 | Labels, folds, DSL, evaluator, gate, backtester |
 | `research`, `agents`, `orchestrator`, `compute` | Plan 4 | Store, proposers, loop, Modal |
 

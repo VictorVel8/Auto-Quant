@@ -1,1 +1,23 @@
-# Filled in by a later plan.
+start: 2021-10-27
+end: 2026-10-26
+dev_end: 2025-10-17          # last dev session; sealed window starts 2025-10-27, after a 5-session embargo
+types: [CS]
+universe:
+  top_n: 1000
+  tradable_top_n: 500
+  adv_window_days: 20
+  min_price: 5.0
+  min_sessions_present: 18
+bars:
+  minutes: 30
+  thin_bar_minutes: 5
+download:
+  concurrency: 8
+  retries: 5
+qa:
+  max_missing_bar_rate: 0.01
+  max_thin_bar_share: 0.05
+  max_extreme_return_share: 0.0001
+  extreme_return_abs: 0.30
+  max_split_gap_abs: 0.25
+  max_unmapped_dollar_share: 0.005

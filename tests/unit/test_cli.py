@@ -6,6 +6,7 @@ from typer.testing import CliRunner
 from alpha_factory.cli import app
 
 runner = CliRunner()
+REPO_CONFIGS = Path(__file__).parents[2] / "configs"
 
 GROUPS = [
     "config",
@@ -31,8 +32,6 @@ def test_help_lists_every_group() -> None:
 @pytest.mark.parametrize(
     ("args", "plan"),
     [
-        (["data", "download"], "Plan 2"),
-        (["data", "publish"], "Plan 2"),
         (["eval", "factor", "-Pct($close, 2)"], "Plan 3"),
         (["eval", "canary"], "Plan 3"),
         (["loop", "run"], "Plan 4"),
@@ -71,3 +70,24 @@ def test_synth_build_small(tmp_path: Path) -> None:
     result = runner.invoke(app, args)
     assert result.exit_code == 0, result.output
     assert "dataset_hash" in result.output
+
+
+def test_data_publish_is_unspecified() -> None:
+    result = runner.invoke(app, ["data", "publish"])
+    assert result.exit_code == 2
+    assert "not specified" in result.output
+
+
+def test_data_download_names_missing_s3_variables(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AF_CONFIG_DIR", str(REPO_CONFIGS))
+    result = runner.invoke(app, ["data", "download"])
+    assert result.exit_code == 1
+    for name in ("MASSIVE_S3_ACCESS_KEY_ID", "MASSIVE_S3_SECRET_ACCESS_KEY", "MASSIVE_S3_BUCKET"):
+        assert name in result.output.replace("\n", "")
+
+
+def test_data_ref_names_missing_api_key(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("AF_CONFIG_DIR", str(REPO_CONFIGS))
+    result = runner.invoke(app, ["data", "ref"])
+    assert result.exit_code == 1
+    assert "MASSIVE_API_KEY" in result.output

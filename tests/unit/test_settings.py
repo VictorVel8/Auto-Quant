@@ -70,3 +70,13 @@ def test_prod_refuses_dirty_tree(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
     with pytest.raises(RuntimeError, match="clean"):
         Settings().check_prod_tree_clean()
     Settings(env="dev").check_prod_tree_clean()
+
+
+def test_empty_values_from_a_copied_env_example_use_defaults(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / ".env").write_text("AF_ENV=\nAF_LOG_JSON=\nLLM_API_KEY=\n")
+    s = Settings()
+    assert s.env == "dev"
+    assert s.log_json is False
+    assert s.llm_api_key is None
