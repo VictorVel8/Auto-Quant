@@ -1,0 +1,20 @@
+?start: expr
+?expr: sum (COMPOP sum)?
+?sum: product ((PLUS | MINUS) product)*
+?product: unary ((STAR | SLASH) unary)*
+?unary: MINUS unary -> neg
+      | atom
+?atom: NUMBER -> number
+     | FIELD -> field
+     | NAME "(" [expr ("," expr)*] ")" -> call
+     | "(" expr ")"
+FIELD: "$" /[a-z]+/
+NAME: /[A-Z][A-Za-z]*/
+COMPOP: ">=" | "<=" | ">" | "<"
+PLUS: "+"
+MINUS: "-"
+STAR: "*"
+SLASH: "/"
+%import common.NUMBER
+%import common.WS
+%ignore WS
