@@ -171,3 +171,20 @@ def test_manifest_rejects_bad_hash_and_adjustment() -> None:
         DataManifest.model_validate({**good, "dataset_hash": "xyz"})
     with pytest.raises(ValidationError):
         DataManifest.model_validate({**good, "adjustment": "backward"})
+
+
+def test_sandbox_rejects_overlapping_folds() -> None:
+    a = Fold(fold_id="a", train=None, val=DateRange(start=date(2022, 1, 3), end=date(2022, 3, 1)))
+    b = Fold(fold_id="b", train=None, val=DateRange(start=date(2022, 2, 1), end=date(2022, 4, 1)))
+    with pytest.raises(ValidationError, match="overlap"):
+        sandbox(folds=(a, b))
+
+
+def test_sandbox_requires_the_embargo_between_holdout_and_sealed_test() -> None:
+    tight = DateRange(start=date(2022, 9, 5), end=date(2022, 9, 30))  # sealed starts Oct 1
+    with pytest.raises(ValidationError, match="embargo"):
+        sandbox(
+            gate_holdout=DateRange(start=date(2022, 7, 1), end=date(2022, 9, 28)),
+            sealed_test=DateRange(start=date(2022, 10, 1), end=date(2022, 12, 31)),
+        )
+    assert tight  # keep the helper used

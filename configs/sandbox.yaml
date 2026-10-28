@@ -1,1 +1,46 @@
-# Filled in by a later plan.
+# Sealed by ownership and hash: edited only by you. dataset_hash is NOT written here; the loader
+# takes it from the current dev build, so rebuilding the data changes the sandbox hash.
+sandbox_version: "1"
+bar_minutes: 30
+universe:             # must equal the universe block of data.yaml
+  top_n: 1000
+  adv_window_days: 20
+  min_price: 5.0
+  tradable_top_n: 500
+labels:
+  - {name: h1, hours: 1}
+  - {name: h2, hours: 2}
+  - {name: h4, hours: 4}
+folds:                # search folds: the loop sees rounded metrics
+  - {fold_id: F1, train: null, val: {start: 2021-11-24, end: 2022-08-31}}
+  - {fold_id: F2, train: null, val: {start: 2022-09-01, end: 2023-06-30}}
+  - {fold_id: F3, train: null, val: {start: 2023-07-01, end: 2024-04-30}}
+  - {fold_id: F4, train: null, val: {start: 2024-05-01, end: 2025-04-30}}
+purge_bars: 8
+embargo_days: 5
+gate_holdout: {start: 2025-05-01, end: 2025-10-17}   # end must equal data.yaml dev_end
+sealed_test: {start: 2025-10-27, end: 2026-10-26}
+costs:
+  commission_per_share: 0.0035      # IBKR Pro tiered
+  min_commission_per_order: 0.35
+  max_commission_pct: 0.01
+  half_spread_bps: 2.0
+  sell_fee_bps: 0.3                 # ASSUMPTION: SEC section 31 fee (~0.28 bps); verify the current rate
+portfolio:
+  capital_usd: 50000
+  gross_leverage: 1.0
+  positions_per_side: 10
+  rebalance_times: ["10:00:00", "12:00:00", "14:00:00"]
+  hold_buffer: 5
+  sector_neutral: true
+  exit_at_close: true
+gate:
+  min_ic_mean: null                 # null: use the null-calibrated 99th percentile
+  min_ic_tstat: 3.0
+  deflate_by_trials: true
+  min_ic_worst_fold: 0.0
+  min_years_positive_frac: 0.75
+  max_corr_pool: 0.70
+  min_incremental_ic: 0.003
+  min_net_sharpe_val: 0.0
+  holdout_min_ic_ratio: 0.5

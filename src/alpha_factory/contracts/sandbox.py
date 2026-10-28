@@ -1,6 +1,7 @@
 """The sandbox spec (hashed; every result points back to it) and the sealed final evaluation."""
 
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
+from itertools import pairwise
 from typing import Literal
 
 from pydantic import model_validator
@@ -8,6 +9,11 @@ from pydantic import model_validator
 from alpha_factory.contracts.base import Horizon, Record, Sha256
 from alpha_factory.contracts.evaluation import GateSpec
 from alpha_factory.hashing import sha256_canonical
+
+
+def _weekdays_between(a: date, b: date) -> int:
+    """Weekdays strictly between two dates (holidays are not known to a contract)."""
+    return sum(1 for i in range(1, (b - a).days) if (a + timedelta(days=i)).weekday() < 5)
 
 
 class DateRange(Record):
@@ -81,8 +87,17 @@ class SandboxSpec(Record):
             last = f.val.end if f.train is None else max(f.val.end, f.train.end)
             if last >= self.gate_holdout.start:
                 raise ValueError(f"{f.fold_id} overlaps the gate holdout")
+        ordered = sorted(self.folds, key=lambda f: f.val.start)
+        for a, b in pairwise(ordered):
+            if a.val.end >= b.val.start:
+                raise ValueError(f"{a.fold_id} and {b.fold_id} overlap")
         if self.gate_holdout.end >= self.sealed_test.start:
             raise ValueError("gate holdout must end before the sealed test")
+        gap = _weekdays_between(self.gate_holdout.end, self.sealed_test.start)
+        if gap < self.embargo_days:
+            raise ValueError(
+                f"embargo: {gap} weekdays between holdout and sealed test, need {self.embargo_days}"
+            )
         longest = max(label.hours for label in self.labels) * 60 // self.bar_minutes
         if self.purge_bars < longest:
             raise ValueError("purge_bars must cover the longest label")
