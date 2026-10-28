@@ -10,8 +10,11 @@ research store that steers the next proposals.
 
 ## Status
 
-Plan 1 (foundations): repo, config, contracts, synthetic market, CLI. No real market data,
-no LLM calls, no evaluation logic yet.
+Plan 1 (foundations): repo, config, contracts, synthetic market, CLI.
+Plan 2 (market data): Massive flat files to adjusted 30-min bars, universe, sectors, manifest, QA
+and the `MarketData` read API (see `docs/data.md`).
+Plan 3 (sandbox and evaluation engine): DSL, labels, evaluator, backtester, gate and sealed
+`final_eval` (see `docs/evaluation.md`). No LLM calls yet.
 
 ## Quick start
 

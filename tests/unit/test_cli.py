@@ -32,14 +32,11 @@ def test_help_lists_every_group() -> None:
 @pytest.mark.parametrize(
     ("args", "plan"),
     [
-        (["eval", "factor", "-Pct($close, 2)"], "Plan 3"),
-        (["eval", "canary"], "Plan 3"),
         (["loop", "run"], "Plan 4"),
         (["lib", "freeze"], "Plan 4"),
         (["family", "activate"], "Plan 4"),
         (["goal", "list"], "Plan 4"),
         (["report", "ab"], "Plan 4"),
-        (["final-eval", "factor_lib_v1"], "Plans 3 and 4"),
     ],
 )
 def test_stubs_exit_2_and_name_the_plan(args: list[str], plan: str) -> None:
@@ -91,3 +88,23 @@ def test_data_ref_names_missing_api_key(monkeypatch: pytest.MonkeyPatch) -> None
     result = runner.invoke(app, ["data", "ref"])
     assert result.exit_code == 1
     assert "MASSIVE_API_KEY" in result.output
+
+
+def test_eval_factor_reports_dsl_errors_with_the_reason_code() -> None:
+    result = runner.invoke(app, ["eval", "factor", "Nope($close)"])
+    assert result.exit_code == 1
+    assert "invalid_parse" in result.output
+
+
+def test_eval_factor_accepts_a_leading_minus_and_needs_a_dev_dataset(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setenv("AF_CONFIG_DIR", str(REPO_CONFIGS))
+    result = runner.invoke(app, ["eval", "factor", "-Pct($close, 2)"])
+    assert result.exit_code == 1  # parsed fine, then no dev dataset in this empty data dir
+    assert "invalid_parse" not in result.output
+
+
+def test_final_eval_points_at_plan_4_for_loading_the_library() -> None:
+    result = runner.invoke(app, ["final-eval", "factor_lib_v1"])
+    assert result.exit_code == 2 and "Plan 4" in result.output

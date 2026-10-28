@@ -14,8 +14,11 @@ from alpha_factory.logging import configure_logging
 from alpha_factory.settings import MissingSettingError, Settings
 
 if TYPE_CHECKING:
+    from alpha_factory.contracts.sandbox import SandboxSpec
+    from alpha_factory.data import MarketData
     from alpha_factory.data.config import DataConfig
     from alpha_factory.data.layout import DataLayout
+    from alpha_factory.eval.context import EvalContext
 
 app = typer.Typer(name="af", help="Alpha Factory: intraday signal research.", no_args_is_help=True)
 console = Console()
@@ -316,22 +319,151 @@ def data_publish() -> None:
 evaluate = _group("eval", "Evaluate factors and calibrate the pipeline.")
 
 
+class HorizonChoice(StrEnum):
+    h1 = "h1"
+    h2 = "h2"
+    h4 = "h4"
+
+
+def _eval_context(settings: Settings) -> "tuple[MarketData, SandboxSpec, EvalContext]":
+    """(MarketData, SandboxSpec, EvalContext) on the dev dataset."""
+    from alpha_factory.data import DatasetNotReadyError, MarketData
+    from alpha_factory.eval.context import build_context
+    from alpha_factory.sandbox import SandboxConfigError, load_sandbox
+
+    try:
+        data = MarketData("dev", settings=settings)
+        sandbox = load_sandbox(settings, dataset_hash=data.manifest.dataset_hash)
+    except (DatasetNotReadyError, SandboxConfigError, OSError) as e:
+        err.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    return data, sandbox, build_context(data, sandbox)
+
+
 @evaluate.command("factor", context_settings={"ignore_unknown_options": True})
-def eval_factor(expr: Annotated[str, typer.Argument(help="DSL expression.")]) -> None:
-    """Plan 3: evaluate one expression."""
-    _stub("Plan 3", "eval factor")
+def eval_factor(
+    expr: Annotated[str, typer.Argument(help="DSL expression.")],
+    horizon: Annotated[HorizonChoice, typer.Option(help="Label horizon.")] = HorizonChoice.h1,
+    sign: Annotated[int, typer.Option(help="+1 or -1: the sign of the expected IC.")] = 1,
+    n_trials: Annotated[int, typer.Option(help="Trials evaluated so far (sets the t bar).")] = 1,
+    condition: Annotated[str | None, typer.Option(help="Optional bool expression.")] = None,
+) -> None:
+    """Evaluate one expression on the search folds. For exploring by hand: nothing is recorded."""
+    from alpha_factory.dsl import DSLError, compile_expr
+    from alpha_factory.eval.calibration import load_calibration
+    from alpha_factory.eval.evaluate import TrialInfo
+    from alpha_factory.eval.evaluate import evaluate as run_eval
+    from alpha_factory.eval.pool import Pool
+
+    if sign not in (1, -1):
+        err.print("[red]--sign must be 1 or -1[/red]")
+        raise typer.Exit(1)
+    try:
+        factor = compile_expr(expr, condition=condition)
+    except DSLError as e:
+        err.print(f"[red]{e}[/red]")
+        raise typer.Exit(1) from e
+    settings = Settings()
+    _, sandbox, ctx = _eval_context(settings)
+    cal = load_calibration(settings.data_dir, sandbox.content_hash(), ctx.dataset_hash)
+    floor = {str(k): v for k, v in cal.ic_floor.items()} if cal else None
+    t0 = time.perf_counter()
+    r = run_eval(
+        factor,
+        horizon.value,
+        sign=1 if sign > 0 else -1,
+        pool=Pool(),
+        sandbox=sandbox,
+        context=ctx,
+        trial=TrialInfo(n_trials=n_trials, null_floor=floor),
+    )
+    table = Table("field", "value", title=f"{factor.expression}  ({horizon.value}, sign {sign:+d})")
+    rows = [
+        (
+            "verdict",
+            f"{r.reason.value}" + (f"  flags: {[f.value for f in r.flags]}" if r.flags else ""),
+        ),
+        ("ic_mean / t-stat", f"{r.ic_mean:+.4f} / {r.ic_tstat:+.2f}"),
+        ("worst fold / icir", f"{r.ic_worst_fold:+.4f} / {r.icir:.3f}"),
+        ("folds", ", ".join(f"{f.fold_id}: {f.ic_mean:+.4f}" for f in r.folds)),
+        ("by year", ", ".join(f"{y}: {v:+.4f}" for y, v in sorted(r.ic_by_year.items()))),
+        ("by horizon", ", ".join(f"{h}: {v:+.4f}" for h, v in r.ic_by_horizon.items())),
+        ("incremental IC", f"{r.incremental_ic:+.4f}"),
+        ("turnover", f"{r.turnover:.3f}"),
+        ("net Sharpe (val)", "-" if r.net_sharpe_val is None else f"{r.net_sharpe_val:+.2f}"),
+        ("regimes", ", ".join(f"{k}: {v:+.4f}" for k, v in r.ic_by_regime.items())),
+        (
+            "null floor",
+            "no calibration saved" if cal is None else f"{cal.ic_floor[horizon.value]:.4f}",
+        ),
+        ("hypothesis refuted", str(r.hypothesis_refuted)),
+        ("seconds", f"{time.perf_counter() - t0:.1f}"),
+    ]
+    for k, v in rows:
+        table.add_row(k, v)
+    console.print(table)
 
 
 @evaluate.command("null")
-def eval_null() -> None:
-    """Plan 3: run null calibration."""
-    _stub("Plan 3", "eval null")
+def eval_null(
+    n: Annotated[int, typer.Option("--n", help="Random expressions to evaluate.")] = 1000,
+    seed: Annotated[int, typer.Option(help="RNG seed.")] = 0,
+) -> None:
+    """Null calibration: IC floor per horizon from random formulas, plus the label-shuffle check."""
+    from alpha_factory.eval.calibration import (
+        SHUFFLE_TOLERANCE,
+        label_shuffle_check,
+        run_null,
+        save_calibration,
+    )
+
+    settings = Settings()
+    _, _, ctx = _eval_context(settings)
+    t0 = time.perf_counter()
+
+    def progress(i: int) -> None:
+        if i % 50 == 0:
+            console.print(f"  {i}/{n}")
+
+    cal = run_null(ctx, n=n, seed=seed, progress=progress)
+    shuffle = label_shuffle_check(ctx, "h1", seed=seed)
+    cal = cal.model_copy(update={"shuffle_mean_ic": shuffle})
+    path = save_calibration(cal, settings.data_dir)
+    console.print(f"IC floors (99th percentile of |IC| over {n} random formulas): {cal.ic_floor}")
+    ok = abs(shuffle) <= SHUFFLE_TOLERANCE
+    console.print(
+        f"label shuffle mean IC {shuffle:+.5f} "
+        f"({'ok' if ok else 'FAILED'}, limit {SHUFFLE_TOLERANCE})"
+    )
+    console.print(f"saved {path} in {time.perf_counter() - t0:.0f}s")
+    if not ok:
+        raise typer.Exit(1)
 
 
 @evaluate.command("canary")
 def eval_canary() -> None:
-    """Plan 3: run the leakage canary."""
-    _stub("Plan 3", "eval canary")
+    """Leakage canary: a deliberately leaky feature must score high and be flagged LOOKAHEAD."""
+    from alpha_factory.eval.calibration import CANARY_MULTIPLE, load_calibration, run_canary
+
+    settings = Settings()
+    data, sandbox, ctx = _eval_context(settings)
+    cal = load_calibration(settings.data_dir, sandbox.content_hash(), ctx.dataset_hash)
+    if cal is None:
+        err.print("[red]run `af eval null` first: the canary is compared with the null floor[/red]")
+        raise typer.Exit(1)
+    report = run_canary(ctx, data, cal.ic_floor["h1"])
+    console.print(
+        f"canary IC {report.ic:+.4f} vs null floor {report.floor:.4f}: {report.ratio:.1f}x"
+    )
+    console.print(
+        f"above {CANARY_MULTIPLE:.0f}x the floor: {report.scores_high}; "
+        f"flagged LOOKAHEAD: {report.flagged_lookahead}"
+    )
+    if not (report.scores_high and report.flagged_lookahead):
+        err.print(
+            "[red]the canary did not behave like a leak: the pipeline cannot be trusted yet[/red]"
+        )
+        raise typer.Exit(1)
 
 
 # --- loop, lib, family, goal, report (Plan 4) ------------------------------------------------
@@ -387,5 +519,9 @@ for _name in ("run", "trials", "beliefs", "ab"):
 # --- final-eval (Plans 3 and 4) --------------------------------------------------------------
 @app.command("final-eval")
 def final_eval(lib_version: Annotated[str, typer.Argument(metavar="LIB")]) -> None:
-    """Plans 3 and 4: sealed test evaluation; sealed Modal environment only."""
-    _stub("Plans 3 and 4", "final-eval")
+    """Sealed test evaluation. final_eval() exists (Plan 3); loading LIB needs Plan 4."""
+    err.print(
+        "[yellow]`af final-eval` needs the frozen library and combiner from Plan 4. The sealed "
+        "evaluation itself is alpha_factory.sandbox.final_eval.final_eval.[/yellow]"
+    )
+    raise typer.Exit(STUB_EXIT_CODE)
