@@ -45,9 +45,18 @@ def compute_adj_factors(
         pl.col("session_date").alias("ex_date"),
         pl.col("raw_close").alias("prev_close"),
     )
-    div_events = (
+    # Several dividends on one ex-date (regular + special) are one price drop: sum their cash.
+    # Integer micro-dollars keep the sum exact whatever the thread scheduling.
+    same_day = (
         dividends.filter(pl.col("ex_date") > first_session)
-        .sort("ex_date")
+        .with_columns((pl.col("cash_amount") * 1_000_000).round().cast(pl.Int64).alias("_micro"))
+        .group_by("ticker_id", "ex_date")
+        .agg(pl.col("_micro").sum())
+        .with_columns((pl.col("_micro") / 1_000_000).alias("cash_amount"))
+        .select("ticker_id", "ex_date", "cash_amount")
+    )
+    div_events = (
+        same_day.sort("ex_date")
         .join_asof(
             prev_close.sort("ex_date"),
             on="ex_date",

@@ -13,11 +13,17 @@ from alpha_factory.data.massive import REST_BASE_URL
 from alpha_factory.hashing import sha256_file
 
 
+class Permanent(Exception):
+    """Wrap an exception that retrying cannot fix (client errors such as 404)."""
+
+
 def with_retries[T](fn: Callable[[], T], retries: int, base_delay: float = 1.0) -> T:
-    """Call fn, retrying with exponential backoff on any exception."""
+    """Call fn, retrying with exponential backoff. `Permanent` errors are raised at once."""
     for attempt in range(retries + 1):
         try:
             return fn()
+        except Permanent as e:
+            raise (e.__cause__ or e) from None
         except Exception:
             if attempt == retries:
                 raise
@@ -102,10 +108,24 @@ class RestClient:
     def get_json(self, url: str, params: dict[str, str] | None = None) -> dict[str, Any]:
         def call() -> dict[str, Any]:
             r = self._http.get(url, params=params)
-            r.raise_for_status()
+            try:
+                r.raise_for_status()
+            except httpx.HTTPStatusError as e:
+                if 400 <= r.status_code < 500 and r.status_code != 429:
+                    raise Permanent from e
+                raise
             return r.json()
 
         return with_retries(call, self._retries)
+
+    def get_json_or_none(self, url: str) -> dict[str, Any] | None:
+        """Like get_json, but a 404 (for example details of a delisted ticker) returns None."""
+        try:
+            return self.get_json(url)
+        except httpx.HTTPStatusError as e:
+            if e.response.status_code == 404:
+                return None
+            raise
 
     def get_all(self, path: str, params: dict[str, str]) -> list[dict[str, Any]]:
         """Follow next_url until exhausted and return every result row."""

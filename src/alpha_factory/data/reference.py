@@ -1,6 +1,7 @@
 """Reference tables: fetch and cache REST responses, then normalise them into ref/*.parquet."""
 
 import json
+from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
 from typing import Any
@@ -19,7 +20,12 @@ def latest_cached(layout: DataLayout, endpoint: str) -> dict[str, Any] | None:
 
 
 def fetch_reference(
-    client: RestClient, layout: DataLayout, fetch_date: date, start: date, types: tuple[str, ...]
+    client: RestClient,
+    layout: DataLayout,
+    fetch_date: date,
+    start: date,
+    types: tuple[str, ...],
+    concurrency: int = 8,
 ) -> None:
     """Fetch every reference endpoint and cache the raw JSON. Details are fetched incrementally."""
     for name, (path, params) in massive.ENDPOINTS.items():
@@ -29,16 +35,22 @@ def fetch_reference(
         rows = client.get_all(path, {**params, **extra})
         write_cached_json(layout.raw_ref_dir(name), fetch_date.isoformat(), {"results": rows})
 
-    tickers = [
-        r
-        for name in ("tickers_active", "tickers_inactive")
-        for r in (latest_cached(layout, name) or {"results": []})["results"]
+    active = massive.parse_tickers(
+        (latest_cached(layout, "tickers_active") or {"results": []})["results"]
+    )
+    wanted = sorted({r["ticker"] for r in active if r["type"] in types})
+    cached: dict[str, Any] = (latest_cached(layout, massive.DETAILS_ENDPOINT) or {"results": {}})[
+        "results"
     ]
-    wanted = sorted({r["ticker"] for r in massive.parse_tickers(tickers) if r["type"] in types})
-    cached = (latest_cached(layout, massive.DETAILS_ENDPOINT) or {"results": {}})["results"]
-    for t in wanted:
-        if t not in cached:
-            cached[t] = client.get_json(f"/v3/reference/tickers/{t}")
+    todo = [t for t in wanted if t not in cached]
+
+    def one(t: str) -> tuple[str, dict[str, Any]]:
+        # Delisted names 404; keep a marker so reruns do not ask again.
+        return t, client.get_json_or_none(f"/v3/reference/tickers/{t}") or {"results": None}
+
+    with ThreadPoolExecutor(concurrency) as ex:
+        for t, payload in ex.map(one, todo):
+            cached[t] = payload
     write_cached_json(
         layout.raw_ref_dir(massive.DETAILS_ENDPOINT), fetch_date.isoformat(), {"results": cached}
     )
@@ -49,8 +61,10 @@ def build_ref_tables(layout: DataLayout) -> dict[str, int]:
     raw: dict[str, list[dict[str, Any]]] = {
         n: (latest_cached(layout, n) or {"results": []})["results"] for n in massive.ENDPOINTS
     }
-    tickers = massive.parse_tickers(raw["tickers_active"] + raw["tickers_inactive"])
     details = (latest_cached(layout, massive.DETAILS_ENDPOINT) or {"results": {}})["results"]
+    tickers = massive.parse_tickers(
+        raw["tickers_active"] + raw["tickers_inactive"], massive.parse_list_dates(details)
+    )
 
     instruments = pl.DataFrame(
         tickers,
@@ -78,9 +92,15 @@ def build_ref_tables(layout: DataLayout) -> dict[str, int]:
     )
     # One row per instrument: an active record wins over a stale delisted one.
     instruments = (
-        instruments.drop("ticker")
-        .sort("ticker_id", "delisted_date", descending=[False, True], nulls_last=False)
+        instruments.sort(
+            "ticker_id",
+            "delisted_date",
+            "ticker",
+            descending=[False, True, False],
+            nulls_last=False,
+        )
         .unique("ticker_id", keep="first", maintain_order=True)
+        .drop("ticker")
         .sort("ticker_id")
     )
 
@@ -96,7 +116,9 @@ def build_ref_tables(layout: DataLayout) -> dict[str, int]:
         return (
             joined.select("ticker_id", *[c for c in schema if c != "ticker"])
             .unique()
-            .sort("ticker_id", date_col)
+            # Sort on every column: rows tied on (ticker, date), e.g. a regular and a special
+            # dividend on one ex-date, must not come out in arbitrary order.
+            .sort("ticker_id", date_col, *[c for c in schema if c not in ("ticker", date_col)])
         )
 
     splits = by_symbol(
@@ -122,6 +144,7 @@ def build_ref_tables(layout: DataLayout) -> dict[str, int]:
         )
         .join(symbols.select("ticker", "ticker_id"), on="ticker", how="inner")
         .select("ticker_id", "sic_code")
+        .sort("ticker_id", "sic_code")
         .unique("ticker_id", keep="first", maintain_order=True)
         .sort("ticker_id")
     )

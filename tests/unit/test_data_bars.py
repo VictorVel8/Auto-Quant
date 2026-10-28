@@ -114,3 +114,10 @@ def test_symbol_periods_resolve_renames_and_reused_tickers() -> None:
         .filter(pl.col("ticker") == "TKR2")
         .is_empty()
     )
+
+
+def test_fractional_volumes_sum_exactly() -> None:
+    rows = [("AAA", 9, 30 + i % 29, 1, 1, 1, 1, 0.1) for i in range(29)]  # 29 x 0.1 shares
+    rows += [("AAA", 9, 59, 1, 1, 1, 1, 1220415.586502)]
+    bars, _ = aggregate_session(minutes(DAY, rows), DAY, 13, MAPPING, ("CS",))
+    assert abs(bars["volume"][0] - 1220418.486502) < 1e-9

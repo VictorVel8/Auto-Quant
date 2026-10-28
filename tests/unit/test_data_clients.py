@@ -94,3 +94,29 @@ def test_rest_client_retries_server_errors() -> None:
     client = clients.RestClient("KEY", retries=3, transport=httpx.MockTransport(handler))
     assert client.get_all("/p", {}) == []
     assert calls["n"] == 3
+
+
+def test_404_is_not_retried_and_get_json_or_none_returns_none() -> None:
+    calls = {"n": 0}
+
+    def handler(_r: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(404, json={"status": "NOT_FOUND"})
+
+    client = clients.RestClient("KEY", retries=5, transport=httpx.MockTransport(handler))
+    assert client.get_json_or_none("/v3/reference/tickers/GONE") is None
+    assert calls["n"] == 1
+    with pytest.raises(httpx.HTTPStatusError):
+        client.get_json("/v3/reference/tickers/GONE")
+
+
+def test_429_is_retried() -> None:
+    calls = {"n": 0}
+
+    def handler(_r: httpx.Request) -> httpx.Response:
+        calls["n"] += 1
+        return httpx.Response(429) if calls["n"] < 3 else httpx.Response(200, json={"results": []})
+
+    client = clients.RestClient("KEY", retries=3, transport=httpx.MockTransport(handler))
+    assert client.get_all("/p", {}) == []
+    assert calls["n"] == 3

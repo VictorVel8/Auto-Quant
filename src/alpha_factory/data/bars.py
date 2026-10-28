@@ -85,6 +85,8 @@ def aggregate_session(
         )
         .with_columns(
             (pl.col("_rel") // BAR_MINUTES).cast(pl.Int8).alias("bar"),
+            # Volumes can be fractional (2026 files), so sum them as exact integer micro-shares.
+            (pl.col("volume") * PV_SCALE).round().cast(pl.Int64).alias("_vol"),
             # Integer micro-dollars: integer sums are exact, so a parallel group_by cannot
             # change the result by reordering float additions.
             ((pl.col("high") + pl.col("low") + pl.col("close")) / 3 * pl.col("volume") * PV_SCALE)
@@ -99,11 +101,12 @@ def aggregate_session(
             pl.col("high").max(),
             pl.col("low").min(),
             pl.col("close").last(),
-            pl.col("volume").sum(),
+            pl.col("_vol").sum(),
             pl.col("transactions").sum().alias("trades"),
             pl.col("_pv").sum(),
             pl.len().cast(pl.Int16).alias("n_minutes"),
         )
+        .with_columns((pl.col("_vol") / PV_SCALE).alias("volume"))
         .with_columns(
             pl.when(pl.col("volume") > 0)
             .then(pl.col("_pv") / PV_SCALE / pl.col("volume"))
@@ -141,7 +144,7 @@ def aggregate_session(
 
 
 def _cache_key(raw_size: int, symbols_key: str, cfg: DataConfig) -> str:
-    return f"v1|{raw_size}|{symbols_key}|{cfg.bars.minutes}|{','.join(cfg.types)}"
+    return f"v2|{raw_size}|{symbols_key}|{cfg.bars.minutes}|{','.join(cfg.types)}"
 
 
 def ensure_session_cache(

@@ -123,3 +123,12 @@ def test_apply_adjustment_columns() -> None:
     assert row["adj_factor"] == 2.0
     with pytest.raises(ValueError, match="without an adjustment factor"):
         apply_adjustment(raw, factors.clear())
+
+
+def test_dividends_on_the_same_ex_date_are_one_price_drop() -> None:
+    two = pl.DataFrame(
+        {"ticker_id": ["A", "A"], "ex_date": [D[4], D[4]], "cash_amount": [1.5, 0.5]}
+    )
+    f = compute_adj_factors(daily(CLOSES), SPLITS, two, D[0])
+    # C(e-1) = 50 and total cash 2.0, not two compounded factors (50/48.5 * 50/49.5)
+    assert f["div_factor"].to_list()[-1] == pytest.approx(50 / 48)

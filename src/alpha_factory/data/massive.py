@@ -3,12 +3,13 @@
 Verified against the live service on 2026-10-28:
 - Flat files: bucket `flatfiles`, key `us_stocks_sip/minute_aggs_v1/YYYY/MM/YYYY-MM-DD.csv.gz`
   exist back to 2003; columns are exactly MINUTE_COLUMNS, `window_start` is Unix ns, minutes
-  cover 04:00-20:00 ET, volume is an integer, there are no nulls (checked on 2024-06-10).
-
-NOT yet verified (no REST API key was available): the REST base URL, the auth header, the
-endpoint paths and every field name in the tables below (TICKER_FIELDS, SPLIT_FIELDS,
-DIVIDEND_FIELDS, DETAIL_SIC_FIELD). They follow the plan's description. Probe each endpoint once
-and fix the mapping here; nothing else in the package depends on vendor names.
+  cover 04:00-20:00 ET, there are no nulls (checked on 2024-06-10). Volume was an integer in
+  the 2024 file but is FRACTIONAL in 2026 files (e.g. 1220415.586502).
+- REST: base URL https://api.massive.com with `Authorization: Bearer <key>`. The tickers list
+  has no `list_date` or `sic_code`; those come from the per-ticker details, which return 404 for
+  delisted tickers (so delisted names have no list date and no SIC). Only about half of delisted
+  common stocks carry a FIGI. Splits and dividends use the field names below, with `next_url`
+  pagination; dividends carry `currency` and a `distribution_type` (recurring, special, ...).
 """
 
 from datetime import date, datetime
@@ -42,7 +43,6 @@ TICKER_FIELDS = {
     "primary_exchange": "primary_exchange",
     "composite_figi": "composite_figi",
     "share_class_figi": "share_class_figi",
-    "list_date": "list_date",
     "delisted_date": "delisted_utc",
 }
 SPLIT_FIELDS = {
@@ -53,7 +53,9 @@ SPLIT_FIELDS = {
     "adjustment_type": "adjustment_type",
 }
 DIVIDEND_FIELDS = {"ticker": "ticker", "ex_date": "ex_dividend_date", "cash_amount": "cash_amount"}
+DIVIDEND_CURRENCY_FIELD = "currency"
 DETAIL_SIC_FIELD = "sic_code"
+DETAIL_LIST_DATE_FIELD = "list_date"
 
 MINUTE_COLUMNS = (
     "ticker",
@@ -89,13 +91,16 @@ def make_ticker_id(share_class_figi: str | None, ticker: str, list_date: date | 
     return f"TKR:{ticker}:{list_date.isoformat() if list_date else 'na'}"
 
 
-def parse_tickers(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
+def parse_tickers(
+    rows: list[dict[str, Any]], list_dates: dict[str, date | None] | None = None
+) -> list[dict[str, Any]]:
+    """Normalise ticker rows. `list_dates` (ticker -> date, from the details) fills list_date."""
     out: list[dict[str, Any]] = []
     for r in rows:
         ticker = _get(r, TICKER_FIELDS, "ticker")
         if not ticker:
             continue
-        list_date = _date(_get(r, TICKER_FIELDS, "list_date"))
+        list_date = (list_dates or {}).get(ticker)
         figi = _get(r, TICKER_FIELDS, "share_class_figi") or None
         out.append(
             {
@@ -139,11 +144,22 @@ def parse_dividends(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
             _date(_get(r, DIVIDEND_FIELDS, "ex_date")),
             _get(r, DIVIDEND_FIELDS, "cash_amount"),
         )
+        if r.get(DIVIDEND_CURRENCY_FIELD) not in (None, "", "USD"):
+            continue  # a foreign-currency cash amount cannot adjust a USD price
         if d and cash is not None and _get(r, DIVIDEND_FIELDS, "ticker"):
             out.append(
                 {"ticker": r[DIVIDEND_FIELDS["ticker"]], "ex_date": d, "cash_amount": float(cash)}
             )
     return out
+
+
+def parse_list_dates(details: dict[str, dict[str, Any]]) -> dict[str, date | None]:
+    """ticker -> list_date from the details (absent or null for delisted tickers)."""
+    return {
+        t: _date((d.get("results") or d).get(DETAIL_LIST_DATE_FIELD))
+        for t, d in details.items()
+        if (d.get("results") or d).get(DETAIL_LIST_DATE_FIELD)
+    }
 
 
 def parse_sic(details: dict[str, dict[str, Any]]) -> dict[str, str]:

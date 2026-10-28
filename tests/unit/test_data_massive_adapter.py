@@ -23,14 +23,15 @@ TICKER_ROWS = [
 
 
 def test_ticker_id_uses_share_class_figi_or_falls_back() -> None:
-    a, b = massive.parse_tickers(TICKER_ROWS)
+    a, b = massive.parse_tickers(TICKER_ROWS, {"OLD": date(2010, 5, 3)})
     assert a["ticker_id"] == "BBG001S5TZJ6"
     assert b["ticker_id"] == "TKR:OLD:2010-05-03"
+    assert massive.parse_tickers(TICKER_ROWS)[1]["ticker_id"] == "TKR:OLD:na"
     assert massive.make_ticker_id(None, "X", None) == "TKR:X:na"
 
 
 def test_ticker_dates_and_delisting() -> None:
-    a, b = massive.parse_tickers(TICKER_ROWS)
+    a, b = massive.parse_tickers(TICKER_ROWS, {"NVDA": date(1999, 1, 22)})
     assert a["list_date"] == date(1999, 1, 22) and a["delisted_date"] is None
     assert b["delisted_date"] == date(2023, 2, 14)
 
@@ -61,7 +62,21 @@ def test_split_ratio_is_shares_after_over_before() -> None:
 
 def test_dividends_and_sic() -> None:
     divs = massive.parse_dividends(
-        [{"ticker": "A", "ex_dividend_date": "2024-02-01", "cash_amount": 0.25}, {"ticker": "B"}]
+        [
+            {
+                "ticker": "A",
+                "ex_dividend_date": "2024-02-01",
+                "cash_amount": 0.25,
+                "currency": "USD",
+            },
+            {"ticker": "B"},
+            {
+                "ticker": "C",
+                "ex_dividend_date": "2024-02-01",
+                "cash_amount": 1.0,
+                "currency": "EUR",
+            },
+        ]
     )
     assert divs == [{"ticker": "A", "ex_date": date(2024, 2, 1), "cash_amount": 0.25}]
     sic = massive.parse_sic(
@@ -72,6 +87,17 @@ def test_dividends_and_sic() -> None:
         }
     )
     assert sic == {"A": "3674", "C": "0100"}
+
+
+def test_list_dates_come_from_details_and_skip_delisted_markers() -> None:
+    dates = massive.parse_list_dates(
+        {
+            "A": {"results": {"list_date": "1999-01-22"}},
+            "B": {"results": None},
+            "C": {"results": {}},
+        }
+    )
+    assert dates == {"A": date(1999, 1, 22)}
 
 
 def test_minute_key() -> None:

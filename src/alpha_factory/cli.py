@@ -194,7 +194,9 @@ def data_ref(
         _need(settings, "massive_api_key")
         assert settings.massive_api_key
         client = RestClient(settings.massive_api_key.get_secret_value(), cfg.download.retries)
-        fetch_reference(client, layout, datetime.date.today(), cfg.start, cfg.types)
+        fetch_reference(
+            client, layout, datetime.date.today(), cfg.start, cfg.types, cfg.download.concurrency
+        )
     counts = build_ref_tables(layout)
     console.print(f"ref tables: {counts}")
 

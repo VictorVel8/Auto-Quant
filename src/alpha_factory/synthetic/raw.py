@@ -88,7 +88,6 @@ def write_raw_market(
             tf["primary_exchange"]: "XNAS",
             tf["composite_figi"]: f"BBG{i:09d}",
             tf["share_class_figi"]: None if t in figiless else f"BBGSC{i:07d}",
-            tf["list_date"]: late[1].isoformat() if t == late[0] else "2015-01-02",
             tf["delisted_date"]: None,
         }
         if t == delisted[0]:
@@ -96,9 +95,7 @@ def write_raw_market(
             inactive.append(row)
         else:
             active.append(row)
-    active.append(
-        {tf["ticker"]: etf, tf["name"]: "An ETF", tf["type"]: "ETF", tf["list_date"]: "2010-01-04"}
-    )
+    active.append({tf["ticker"]: etf, tf["name"]: "An ETF", tf["type"]: "ETF"})
     sf, df_ = massive.SPLIT_FIELDS, massive.DIVIDEND_FIELDS
     split_rows = [
         {
@@ -117,11 +114,28 @@ def write_raw_market(
         },
     ]
     div_rows = [
-        {df_["ticker"]: t, df_["ex_date"]: d.isoformat(), df_["cash_amount"]: c} for t, d, c in divs
+        {
+            df_["ticker"]: t,
+            df_["ex_date"]: d.isoformat(),
+            df_["cash_amount"]: c,
+            massive.DIVIDEND_CURRENCY_FIELD: "USD",
+        }
+        for t, d, c in divs
     ]
-    details = {
-        t: {"results": {massive.DETAIL_SIC_FIELD: _sic(i)}} for i, t in enumerate(cs) if _sic(i)
-    }
+    # Like the real service: only active tickers have details (list_date, SIC); delisted 404.
+    details: dict[str, dict[str, object]] = {}
+    for i, t in enumerate(cs):
+        if t == delisted[0]:
+            details[t] = {"results": None}
+            continue
+        details[t] = {
+            "results": {
+                massive.DETAIL_LIST_DATE_FIELD: late[1].isoformat()
+                if t == late[0]
+                else "2015-01-02",
+                massive.DETAIL_SIC_FIELD: _sic(i),
+            }
+        }
     payloads = {
         "tickers_active": {"results": active},
         "tickers_inactive": {"results": inactive},
