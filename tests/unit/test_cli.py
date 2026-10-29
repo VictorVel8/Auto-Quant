@@ -29,20 +29,34 @@ def test_help_lists_every_group() -> None:
         assert g in result.output
 
 
+def test_the_research_commands_work_on_an_empty_store() -> None:
+    """These were stubs before Plan 4; on an empty store they run and say what is missing."""
+    assert runner.invoke(app, ["goal", "list"]).exit_code == 0
+    assert runner.invoke(app, ["loop", "status"]).exit_code == 0
+    assert runner.invoke(app, ["report", "trials"]).exit_code == 0
+    assert runner.invoke(app, ["report", "beliefs"]).exit_code == 0
+    assert runner.invoke(app, ["family", "activate", "momentum"]).exit_code == 0
+    assert runner.invoke(app, ["loop", "pause"]).exit_code == 0
+    assert runner.invoke(app, ["loop", "resume"]).exit_code == 0
+
+
 @pytest.mark.parametrize(
-    ("args", "plan"),
+    ("args", "message"),
     [
-        (["loop", "run"], "Plan 4"),
-        (["lib", "freeze"], "Plan 4"),
-        (["family", "activate"], "Plan 4"),
-        (["goal", "list"], "Plan 4"),
-        (["report", "ab"], "Plan 4"),
+        (["lib", "freeze"], "pool is empty"),
+        (["report", "ab"], "both proposers"),
+        (["final-eval", "lib_v1"], "no library file"),
+        (["data", "publish"], "no dev build"),
+        (["loop", "run", "--once"], "dev"),  # no dev dataset in an empty data directory
     ],
 )
-def test_stubs_exit_2_and_name_the_plan(args: list[str], plan: str) -> None:
+def test_commands_that_need_something_say_what_is_missing(
+    args: list[str], message: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("AF_CONFIG_DIR", str(REPO_CONFIGS))
     result = runner.invoke(app, args)
-    assert result.exit_code == 2
-    assert plan in result.output
+    assert result.exit_code == 1
+    assert message in result.output.replace("\n", " ")
 
 
 def test_config_show_redacts_every_secret(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -67,12 +81,6 @@ def test_synth_build_small(tmp_path: Path) -> None:
     result = runner.invoke(app, args)
     assert result.exit_code == 0, result.output
     assert "dataset_hash" in result.output
-
-
-def test_data_publish_is_unspecified() -> None:
-    result = runner.invoke(app, ["data", "publish"])
-    assert result.exit_code == 2
-    assert "not specified" in result.output
 
 
 def test_data_download_names_missing_s3_variables(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -103,8 +111,3 @@ def test_eval_factor_accepts_a_leading_minus_and_needs_a_dev_dataset(
     result = runner.invoke(app, ["eval", "factor", "-Pct($close, 2)"])
     assert result.exit_code == 1  # parsed fine, then no dev dataset in this empty data dir
     assert "invalid_parse" not in result.output
-
-
-def test_final_eval_points_at_plan_4_for_loading_the_library() -> None:
-    result = runner.invoke(app, ["final-eval", "factor_lib_v1"])
-    assert result.exit_code == 2 and "Plan 4" in result.output

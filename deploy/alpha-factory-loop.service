@@ -1,0 +1,28 @@
+# systemd unit for the research loop on the mini PC.
+#
+#   sudo cp deploy/alpha-factory-loop.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now alpha-factory-loop
+#   journalctl -u alpha-factory-loop -f
+#
+# Edit User and WorkingDirectory. Secrets and paths come from .env in the working directory
+# (see .env.example); the unit holds none. This machine must hold the DEV Modal token only.
+[Unit]
+Description=Alpha Factory research loop
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=vic-mini-pc
+WorkingDirectory=/home/vic-mini-pc/projects/auto-quant
+Environment=AF_ENV=prod
+Environment=AF_LOG_JSON=true
+ExecStart=/home/vic-mini-pc/.local/bin/uv run --no-sync af loop run
+# SIGTERM lets the loop finish the current state; a hard kill is also safe (states are atomic).
+KillSignal=SIGTERM
+TimeoutStopSec=120
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target

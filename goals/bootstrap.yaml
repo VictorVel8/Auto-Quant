@@ -1,0 +1,19 @@
+# The bootstrap goals from Plan 4. Add them with:  af goal add goals/bootstrap.yaml
+- title: Short-term reversal variants
+  question: Which forms of 30-minute to 1-day reversal predict h1 returns beyond the 1-bar baseline?
+  families: [short_term_reversal]
+  horizons: [h1, h2]
+  budget_trials: 150
+  stop_when: Three accepted factors with pairwise correlation below 0.7
+- title: Volume-conditioned moves
+  question: Do price moves on abnormal volume continue or reverse over h2 and h4?
+  families: [volume_shock]
+  horizons: [h2, h4]
+  budget_trials: 150
+  stop_when: The sign of the effect is settled with one accepted factor
+- title: Opening gap behaviour
+  question: How does the overnight gap shape returns between 10:00 and 12:00?
+  families: [overnight_gap]
+  horizons: [h2, h4]
+  budget_trials: 100
+  stop_when: Gap fill versus continuation is settled

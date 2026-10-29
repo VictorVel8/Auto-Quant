@@ -308,13 +308,6 @@ def data_verify() -> None:
         raise typer.Exit(1)
 
 
-@data.command("publish")
-def data_publish() -> None:
-    """Not specified in Plan 2."""
-    err.print("[yellow]`af data publish` is not specified in any plan yet.[/yellow]")
-    raise typer.Exit(STUB_EXIT_CODE)
-
-
 # --- eval (Plan 3) ---------------------------------------------------------------------------
 evaluate = _group("eval", "Evaluate factors and calibrate the pipeline.")
 
@@ -466,62 +459,7 @@ def eval_canary() -> None:
         raise typer.Exit(1)
 
 
-# --- loop, lib, family, goal, report (Plan 4) ------------------------------------------------
-loop = _group("loop", "Run and control the research loop.")
+# --- the research loop, goals, libraries, reports and the sealed evaluation (Plan 4) -----------
+from alpha_factory.cli_research import register as _register_research  # noqa: E402
 
-
-def _loop_stub(name: str) -> None:
-    _stub("Plan 4", f"loop {name}")
-
-
-for _name in ("run", "status", "pause", "resume"):
-    loop.command(_name, help=f"Plan 4: loop {_name}.")(lambda n=_name: _loop_stub(n))
-
-lib = _group("lib", "Factor libraries.")
-
-
-@lib.command("freeze")
-def lib_freeze() -> None:
-    """Plan 4: freeze the pool into a versioned library."""
-    _stub("Plan 4", "lib freeze")
-
-
-family = _group("family", "Mechanism families.")
-
-
-@family.command("activate")
-def family_activate() -> None:
-    """Plan 4: reactivate a family."""
-    _stub("Plan 4", "family activate")
-
-
-goal = _group("goal", "Research goals.")
-
-
-def _goal_stub(name: str) -> None:
-    _stub("Plan 4", f"goal {name}")
-
-
-for _name in ("brief", "propose", "add", "approve", "close", "list"):
-    goal.command(_name, help=f"Plan 4: goal {_name}.")(lambda n=_name: _goal_stub(n))
-
-report = _group("report", "Reports from the research store.")
-
-
-def _report_stub(name: str) -> None:
-    _stub("Plan 4", f"report {name}")
-
-
-for _name in ("run", "trials", "beliefs", "ab"):
-    report.command(_name, help=f"Plan 4: report {_name}.")(lambda n=_name: _report_stub(n))
-
-
-# --- final-eval (Plans 3 and 4) --------------------------------------------------------------
-@app.command("final-eval")
-def final_eval(lib_version: Annotated[str, typer.Argument(metavar="LIB")]) -> None:
-    """Sealed test evaluation. final_eval() exists (Plan 3); loading LIB needs Plan 4."""
-    err.print(
-        "[yellow]`af final-eval` needs the frozen library and combiner from Plan 4. The sealed "
-        "evaluation itself is alpha_factory.sandbox.final_eval.final_eval.[/yellow]"
-    )
-    raise typer.Exit(STUB_EXIT_CODE)
+_register_research(app, data, console, err)

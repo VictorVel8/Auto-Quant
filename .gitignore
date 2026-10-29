@@ -14,3 +14,7 @@ dist/
 *.csv.gz
 *.sqlite
 !tests/fixtures/**
+
+# generated reports and exported libraries are kept out of git
+reports/*.html
+reports/*.json
