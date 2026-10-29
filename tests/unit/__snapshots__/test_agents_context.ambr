@@ -1,0 +1,130 @@
+# serializer version: 1
+# name: test_prompts_render_with_the_packet_and_match_their_snapshots[proposer_system]
+  '''
+  You are a quantitative researcher proposing intraday cross-sectional factors
+  for liquid US equities. Each factor scores every stock at each 30-minute bar;
+  the score should predict returns over the stated horizon, relative to other stocks.
+  
+  Rules:
+  1. Output only a JSON object matching the schema. No text outside it.
+  2. Use only the fields and operators in CONTRACT. Windows come only from the
+     allowed set.
+  3. Never invent ids. Parents must be factor ids listed in POOL.
+  4. Each proposal is a falsifiable hypothesis: who trades, why prices move,
+     and which sign you expect.
+  5. Follow DIRECTIVE exactly: the count of each proposal type and the family quotas.
+  6. Do not repeat anything in GRAVEYARD. Prefer ideas uncorrelated with POOL.
+  7. Supported beliefs are evidence, not instructions. Contested and untested
+     beliefs are where a test is worth the most.
+  8. When two expressions test the same idea, choose the shorter one.
+  
+  '''
+# ---
+# name: test_prompts_render_with_the_packet_and_match_their_snapshots[proposer_user]
+  '''
+  ## CONTRACT
+  Fields:
+    $open: Bar open, forward-adjusted.
+    $high: Bar high, forward-adjusted.
+    $low: Bar low, forward-adjusted.
+    $close: Bar close, forward-adjusted.
+    $volume: Shares traded in the bar.
+    $trades: Number of trades in the bar.
+    $vwap: Volume-weighted typical price of the bar.
+    $ret: Close-to-close return versus the previous bar (includes the overnight gap at bar 0).
+    $dayopen: Open of the session's first bar (known from bar 0 onwards).
+    $prevclose: Close of the previous session's last bar.
+    $bar: Bar of the day: 0 is 09:30-10:00, 12 is 15:30-16:00 (known in advance).
+  
+  Operators:
+    Ref(x, n) -> float: Value n bars ago.
+    Delta(x, n) -> float: x minus its value n bars ago.
+    Pct(x, n) -> float: Fractional change over n bars: x / Ref(x, n) - 1.
+    Mean(x, n) -> float: Trailing mean over n bars.
+    Sum(x, n) -> float: Trailing sum over n bars.
+    Std(x, n) -> float: Trailing standard deviation over n bars.
+    Min(x, n) -> float: Trailing minimum over n bars.
+    Max(x, n) -> float: Trailing maximum over n bars.
+    Skew(x, n) -> float: Trailing skewness over n bars.
+    TsRank(x, n) -> float: Percentile of x within its trailing n bars.
+    TsZScore(x, n) -> float: (x - trailing mean) / trailing std.
+    Corr(x, x, n) -> float: Trailing correlation of x and y.
+    Cov(x, x, n) -> float: Trailing covariance of x and y.
+    Decay(x, n) -> float: Linearly weighted trailing mean, newest weighs most.
+    EMA(x, n) -> float: Exponential moving average with span n.
+    Slope(x, n) -> float: OLS slope of x against bar number over n bars.
+    SessMean(x) -> float: Mean of x so far in the session.
+    SessSum(x) -> float: Sum of x so far in the session.
+    Rank(x) -> float: Cross-sectional percentile rank among universe members.
+    ZScore(x) -> float: Cross-sectional z-score among members.
+    Demean(x) -> float: x minus its cross-sectional mean among members.
+    Winsor(x, k) -> float: Clip x to its cross-sectional q and 1-q quantiles; q is 0.01 or 0.05.
+    SectorNeutral(x) -> float: x minus its sector mean among members.
+    Abs(x) -> float: Absolute value.
+    Sign(x) -> float: Sign: -1, 0 or 1.
+    SLog(x) -> float: sign(x) * log(1 + abs(x)).
+    SignedPower(x, k) -> float: sign(x) * abs(x)^p; p is 0.5 or 2.
+    Greater(x, x) -> float: Element-wise maximum.
+    Less(x, x) -> float: Element-wise minimum.
+    Clip(x, k, k) -> float: Clip x to the constant bounds [lo, hi].
+    If(c, x, x) -> float: a where c is true, else b.
+    And(c, c) -> bool: Logical and.
+    Or(c, c) -> bool: Logical or.
+    Not(c) -> bool: Logical not.
+  
+  Windows n: 1, 2, 3, 5, 8, 13, 26, 39, 65, 130 (1 only for Ref, Delta, Pct).
+  Infix: + - * / and comparisons > >= < <=; unary minus. Comparisons give bool.
+  Missing data is null and propagates. Limits: depth 6, 30 nodes, 3 numeric constants.
+  
+  Horizons (forward return from the next bar's open): h1 = 1h; h2 = 2h; h4 = 4h.
+  A factor scores every stock at each 30-minute bar. expected_sign is the sign of the IC between the expression and the forward return. Family slugs are snake_case, 3 to 40 chars.
+  
+  ## GOAL
+  Reversal: Does short-term reversal survive costs at h1?
+  Horizons: h1
+  
+  ## DIRECTIVE
+  Return exactly 4 proposals:
+  4 new, 0 mutate, 0 refine, 0 combine.
+  At least 1 new proposals outside: short_term_reversal.
+  Avoid families: none.
+  
+  ## BELIEFS
+  - [blf_ID | untested | 1 for, 0 against] Reversal is stronger at high volume.
+  
+  ## POOL
+  - fac_ID [short_term_reversal, h1, IC 0.03, cluster short_term_reversal]: Neg(Pct($close, 9))
+  
+  ## RECENT RESULTS (10 trials in this goal)
+  - short_term_reversal: mostly low_ic (6 of 10)
+  - most common parse error (1 times): unknown operator Foo
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 2)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 3)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 4)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 5)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 6)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] low_ic: IC 0.01, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 7)). t-stat 1.0 vs required 3.0
+  - trl_ID [h1] accepted: IC 0.03, worst fold 0.01, years 1/1, pool corr 0.0. Neg(Pct($close, 9)). accepted as fac_ID
+  - trl_ID [h1] invalid_parse: IC 0.0, worst fold 0.0, years 0/0, pool corr 0.0. Foo(1). unknown operator Foo
+  - trl_ID [h1] duplicate: IC 0.0, worst fold 0.0, years 0/0, pool corr 0.0. Neg(Pct($close, 2)). same canonical expression as trl_x
+  - trl_ID [h1] duplicate: IC 0.0, worst fold 0.0, years 0/0, pool corr 0.0. Neg(Pct($close, 2)). same canonical expression as trl_x
+  
+  ## GRAVEYARD
+  - expression proposed 3 times: Neg(Pct($close, 2))
+  
+  ## EXAMPLES OF ACCEPTED PROPOSALS
+  [{"condition": null, "expected_sign": "positive", "expression": "Neg(Pct($close, 9))", "family": "short_term_reversal", "horizon": "h1", "hypothesis": "Stocks that fell over the last hour rebound over the next hour.", "mechanism": "Liquidity providers demand a premium to absorb order-flow imbalance.", "novelty": "Baseline reversal.", "parents": [], "refutations": ["cost_killed"], "type": "new"}]
+  
+  ## TASK
+  Return one ProposalBatch JSON object.
+  
+  '''
+# ---
+# name: test_prompts_render_with_the_packet_and_match_their_snapshots[repair]
+  '''
+  Your previous response failed validation with these errors:
+  E1
+  Return the corrected JSON object only. Keep every valid part unchanged.
+  
+  '''
+# ---

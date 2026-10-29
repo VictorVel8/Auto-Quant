@@ -1,0 +1,14 @@
+## BELIEFS
+{% for b in beliefs %}- [{{ b.belief_id }} | {{ b.status.value }} | {{ b.n_support }} for, {{ b.n_contradict }} against] ({{ b.family }}, {{ b.horizon }}) {{ b.statement }}
+{% else %}(none yet)
+{% endfor %}
+## RESULTS
+{% for r in results %}- {{ r.trial_id }} [{{ r.family }}, {{ r.horizon }}] {{ r.reason }}: IC {{ r.ic }}, worst fold {{ r.ic_worst_fold }}, years {{ r.years_positive }}, pool corr {{ r.corr_to_pool }}. {{ r.note }}
+  expression: {{ r.expression }}
+  hypothesis: {{ r.hypothesis }}
+  mechanism: {{ r.mechanism }}
+  hypothesis_refuted: {{ r.hypothesis_refuted }}{% if r.triggered %}; triggered checks: {{ r.triggered | join(", ") }}{% endif %}
+
+{% endfor %}
+## TASK
+Return one Reflection JSON object.

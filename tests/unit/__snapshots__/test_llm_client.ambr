@@ -1,0 +1,366 @@
+# serializer version: 1
+# name: test_strict_schema_snapshot[GoalProposals]
+  dict({
+    '$defs': dict({
+      'ResearchGoal': dict({
+        'additionalProperties': False,
+        'description': 'Written by the research manager, approved by you.',
+        'properties': dict({
+          'budget_trials': dict({
+            'maximum': 500,
+            'minimum': 20,
+            'title': 'Budget Trials',
+            'type': 'integer',
+          }),
+          'families': dict({
+            'items': dict({
+              'pattern': '^[a-z][a-z0-9_]{2,39}$',
+              'type': 'string',
+            }),
+            'maxItems': 5,
+            'title': 'Families',
+            'type': 'array',
+          }),
+          'horizons': dict({
+            'items': dict({
+              'enum': list([
+                'h1',
+                'h2',
+                'h4',
+              ]),
+              'type': 'string',
+            }),
+            'minItems': 1,
+            'title': 'Horizons',
+            'type': 'array',
+          }),
+          'question': dict({
+            'description': 'The research question this goal answers.',
+            'maxLength': 400,
+            'title': 'Question',
+            'type': 'string',
+          }),
+          'stop_when': dict({
+            'description': 'What result ends this goal early.',
+            'maxLength': 200,
+            'title': 'Stop When',
+            'type': 'string',
+          }),
+          'title': dict({
+            'maxLength': 80,
+            'title': 'Title',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'title',
+          'question',
+          'families',
+          'horizons',
+          'budget_trials',
+          'stop_when',
+        ]),
+        'title': 'ResearchGoal',
+        'type': 'object',
+      }),
+    }),
+    'additionalProperties': False,
+    'description': 'What the research manager returns: one to three candidate goals.',
+    'properties': dict({
+      'goals': dict({
+        'description': 'Distinct goals, most promising first.',
+        'items': dict({
+          '$ref': '#/$defs/ResearchGoal',
+        }),
+        'maxItems': 3,
+        'minItems': 1,
+        'title': 'Goals',
+        'type': 'array',
+      }),
+    }),
+    'required': list([
+      'goals',
+    ]),
+    'title': 'GoalProposals',
+    'type': 'object',
+  })
+# ---
+# name: test_strict_schema_snapshot[ProposalBatch]
+  dict({
+    '$defs': dict({
+      'FactorProposal': dict({
+        'additionalProperties': False,
+        'properties': dict({
+          'condition': dict({
+            'anyOf': list([
+              dict({
+                'maxLength': 200,
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'description': 'Optional boolean DSL expression marking where the effect should be strongest.',
+            'title': 'Condition',
+          }),
+          'expected_sign': dict({
+            'description': 'Sign of the IC between the expression and the forward return.',
+            'enum': list([
+              'positive',
+              'negative',
+            ]),
+            'title': 'Expected Sign',
+            'type': 'string',
+          }),
+          'expression': dict({
+            'description': 'DSL expression using only the listed fields and operators.',
+            'maxLength': 300,
+            'minLength': 3,
+            'title': 'Expression',
+            'type': 'string',
+          }),
+          'family': dict({
+            'description': 'A family slug from the packet, or a new snake_case slug.',
+            'pattern': '^[a-z][a-z0-9_]{2,39}$',
+            'title': 'Family',
+            'type': 'string',
+          }),
+          'horizon': dict({
+            'description': 'Forward-return label this factor targets.',
+            'enum': list([
+              'h1',
+              'h2',
+              'h4',
+            ]),
+            'title': 'Horizon',
+            'type': 'string',
+          }),
+          'hypothesis': dict({
+            'description': 'One falsifiable claim about future returns.',
+            'maxLength': 400,
+            'minLength': 20,
+            'title': 'Hypothesis',
+            'type': 'string',
+          }),
+          'mechanism': dict({
+            'description': 'Why the effect exists: who trades, under what pressure.',
+            'maxLength': 400,
+            'minLength': 20,
+            'title': 'Mechanism',
+            'type': 'string',
+          }),
+          'novelty': dict({
+            'description': 'What this adds compared with its parents and the pool.',
+            'maxLength': 200,
+            'title': 'Novelty',
+            'type': 'string',
+          }),
+          'parents': dict({
+            'description': 'Ids of pool factors listed in the packet. Never invent ids.',
+            'items': dict({
+              'type': 'string',
+            }),
+            'maxItems': 3,
+            'title': 'Parents',
+            'type': list([
+              'array',
+              'null',
+            ]),
+          }),
+          'refutations': dict({
+            'description': 'Results that would show the hypothesis is wrong.',
+            'items': dict({
+              '$ref': '#/$defs/RefutationCheck',
+            }),
+            'maxItems': 4,
+            'minItems': 1,
+            'title': 'Refutations',
+            'type': 'array',
+          }),
+          'type': dict({
+            'description': 'new: no parents. mutate or refine: exactly 1 parent. combine: 2 to 3 parents.',
+            'enum': list([
+              'new',
+              'mutate',
+              'refine',
+              'combine',
+            ]),
+            'title': 'Type',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'type',
+          'parents',
+          'family',
+          'horizon',
+          'hypothesis',
+          'mechanism',
+          'expected_sign',
+          'expression',
+          'condition',
+          'refutations',
+          'novelty',
+        ]),
+        'title': 'FactorProposal',
+        'type': 'object',
+      }),
+      'RefutationCheck': dict({
+        'enum': list([
+          'subsumed_by_baseline',
+          'sign_unstable',
+          'not_concentrated_in_condition',
+          'weak_at_declared_horizon',
+          'cost_killed',
+          'correlated_with_parent',
+        ]),
+        'title': 'RefutationCheck',
+        'type': 'string',
+      }),
+    }),
+    'additionalProperties': False,
+    'description': 'What the proposer returns. Its JSON Schema is what gets sent.',
+    'properties': dict({
+      'proposals': dict({
+        'items': dict({
+          '$ref': '#/$defs/FactorProposal',
+        }),
+        'maxItems': 16,
+        'minItems': 1,
+        'title': 'Proposals',
+        'type': 'array',
+      }),
+      'rationale': dict({
+        'description': 'How this batch follows the directive and the current beliefs.',
+        'maxLength': 600,
+        'title': 'Rationale',
+        'type': 'string',
+      }),
+    }),
+    'required': list([
+      'rationale',
+      'proposals',
+    ]),
+    'title': 'ProposalBatch',
+    'type': 'object',
+  })
+# ---
+# name: test_strict_schema_snapshot[Reflection]
+  dict({
+    '$defs': dict({
+      'BeliefUpdate': dict({
+        'additionalProperties': False,
+        'properties': dict({
+          'action': dict({
+            'enum': list([
+              'create',
+              'support',
+              'contradict',
+              'refine',
+              'retire',
+            ]),
+            'title': 'Action',
+            'type': 'string',
+          }),
+          'belief_id': dict({
+            'anyOf': list([
+              dict({
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'description': 'Required unless action is create. An id from the packet.',
+            'title': 'Belief Id',
+          }),
+          'evidence': dict({
+            'description': 'Trial ids from THIS batch only.',
+            'items': dict({
+              'type': 'string',
+            }),
+            'maxItems': 20,
+            'minItems': 1,
+            'title': 'Evidence',
+            'type': 'array',
+          }),
+          'family': dict({
+            'pattern': '^[a-z][a-z0-9_]{2,39}$',
+            'title': 'Family',
+            'type': 'string',
+          }),
+          'horizon': dict({
+            'enum': list([
+              'h1',
+              'h2',
+              'h4',
+            ]),
+            'title': 'Horizon',
+            'type': 'string',
+          }),
+          'next_test': dict({
+            'anyOf': list([
+              dict({
+                'maxLength': 200,
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'description': 'One concrete follow-up experiment.',
+            'title': 'Next Test',
+          }),
+          'statement': dict({
+            'anyOf': list([
+              dict({
+                'maxLength': 300,
+                'type': 'string',
+              }),
+              dict({
+                'type': 'null',
+              }),
+            ]),
+            'description': 'Required for create and refine. One claim about a mechanism in a context.',
+            'title': 'Statement',
+          }),
+        }),
+        'required': list([
+          'action',
+          'belief_id',
+          'statement',
+          'family',
+          'horizon',
+          'evidence',
+          'next_test',
+        ]),
+        'title': 'BeliefUpdate',
+        'type': 'object',
+      }),
+    }),
+    'additionalProperties': False,
+    'properties': dict({
+      'summary': dict({
+        'description': 'What this batch taught, in 2 to 3 sentences.',
+        'maxLength': 500,
+        'title': 'Summary',
+        'type': 'string',
+      }),
+      'updates': dict({
+        'items': dict({
+          '$ref': '#/$defs/BeliefUpdate',
+        }),
+        'maxItems': 10,
+        'title': 'Updates',
+        'type': 'array',
+      }),
+    }),
+    'required': list([
+      'summary',
+      'updates',
+    ]),
+    'title': 'Reflection',
+    'type': 'object',
+  })
+# ---

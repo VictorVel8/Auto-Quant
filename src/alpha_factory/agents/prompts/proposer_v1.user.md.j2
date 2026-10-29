@@ -1,0 +1,32 @@
+{% set d = packet.directive -%}
+## CONTRACT
+{{ packet.contract }}
+
+## GOAL
+{{ goal.title }}: {{ goal.question }}
+Horizons: {{ goal.horizons | join(", ") }}
+
+## DIRECTIVE
+Return exactly {{ d.n_new + d.n_mutate + d.n_refine + d.n_combine }} proposals:
+{{ d.n_new }} new, {{ d.n_mutate }} mutate, {{ d.n_refine }} refine, {{ d.n_combine }} combine.
+At least {{ d.min_outside_families }} new proposals outside: {{ d.explore_families | join(", ") }}.
+Avoid families: {{ d.avoid_families | join(", ") or "none" }}.
+
+## BELIEFS
+{% for b in packet.beliefs %}- [{{ b.belief_id }} | {{ b.status.value }} | {{ b.evidence }}] {{ b.statement }}
+{% endfor %}
+## POOL
+{% for f in packet.pool %}- {{ f.factor_id }} [{{ f.family }}, {{ f.horizon }}, IC {{ f.ic }}, cluster {{ f.cluster }}]: {{ f.expression }}
+{% endfor %}
+## RECENT RESULTS ({{ packet.digest.n_trials }} trials in this goal)
+{% for p in packet.digest.patterns %}- {{ p }}
+{% endfor %}{% for r in packet.recent %}- {{ r.trial_id }} [{{ r.horizon }}] {{ r.reason.value }}: IC {{ r.ic }}, worst fold {{ r.ic_worst_fold }}, years {{ r.years_positive }}, pool corr {{ r.corr_to_pool }}. {{ r.expression }}. {{ r.note }}
+{% endfor %}
+## GRAVEYARD
+{% for g in packet.graveyard %}- {{ g }}
+{% endfor %}
+## EXAMPLES OF ACCEPTED PROPOSALS
+{{ exemplars | tojson }}
+
+## TASK
+Return one ProposalBatch JSON object.
