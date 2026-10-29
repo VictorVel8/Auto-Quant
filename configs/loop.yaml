@@ -1,1 +1,14 @@
-# Filled in by a later plan.
+proposer: template                 # template for P4, llm for P5 onward
+batch_size: 12
+max_batches_per_day: 40
+daily_llm_budget_usd: 2.00         # checked before every PROPOSING
+max_consecutive_failures: 3        # then pause and alert
+goal:
+  stop_after_batches_without_accept: 10
+evaluation:
+  backend: local                   # modal once the dev deployment exists
+  max_parallel: 12
+bandit_window: 200                 # last evaluated trials per family
+pool_cap: 40
+replace_t_ratio: 1.2               # a CORRELATED-only trial replaces a pool factor at 1.2x its t
+freeze_suggestion_delta: 5

@@ -216,6 +216,7 @@ engine = [
     { name = "scipy" },
 ]
 loop = [
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "lightgbm" },
     { name = "matplotlib" },
@@ -259,6 +260,7 @@ engine = [
     { name = "scipy" },
 ]
 loop = [
+    { name = "httpx" },
     { name = "jinja2" },
     { name = "lightgbm" },
     { name = "matplotlib" },

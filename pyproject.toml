@@ -16,7 +16,7 @@ af = "alpha_factory.cli:app"
 [dependency-groups]
 data = ["duckdb", "exchange_calendars", "boto3", "httpx"]
 engine = ["lark", "scipy"]
-loop = ["openai", "jinja2", "modal", "lightgbm", "matplotlib"]
+loop = ["openai", "jinja2", "modal", "lightgbm", "matplotlib", "httpx"]
 dev = [
   "pytest", "hypothesis", "syrupy", "ruff", "pyright", "pre-commit", "import-linter",
   "types-pyyaml",
@@ -36,6 +36,15 @@ src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM", "RUF"]
+
+[tool.ruff.lint.per-file-ignores]
+# the agent-side packages (never imported by the sealed ones) are mostly SQL, prompts, CLI text
+"src/alpha_factory/research/*" = ["E501"]
+"src/alpha_factory/agents/*" = ["E501"]
+"src/alpha_factory/orchestrator/*" = ["E501"]
+"src/alpha_factory/compute/*" = ["E501"]
+"src/alpha_factory/cli_research.py" = ["E501"]
+"tests/**" = ["E501", "RUF059", "RUF015", "E741", "RUF028"]  # dense assertions and fixtures
 
 [tool.pyright]
 include = ["src", "tests"]
