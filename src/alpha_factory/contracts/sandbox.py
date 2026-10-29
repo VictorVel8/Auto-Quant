@@ -125,3 +125,29 @@ class FinalEvalReport(Record):
     turnover: float
     cost_share_of_gross: float
     created_at: datetime
+
+
+class CombinerSpec(Record):
+    kind: Literal["rank_average", "ridge"]
+    target_horizon: Horizon = "h2"
+    ridge_alpha: float = 10.0
+
+
+class LibFactor(Record):
+    factor_id: str
+    canonical_expr: str
+    sign: Literal[1, -1]
+    horizon: Horizon
+
+
+class FrozenLibrary(Record):
+    """A frozen, hashed snapshot of the pool and its combiner. Only libraries reach final_eval."""
+
+    lib_version: str  # "lib_v3"
+    sandbox_hash: Sha256
+    factors: tuple[LibFactor, ...]
+    combiner: CombinerSpec
+    frozen_at: datetime
+
+    def content_hash(self) -> str:
+        return sha256_canonical(self.model_dump(mode="json", exclude={"frozen_at"}))

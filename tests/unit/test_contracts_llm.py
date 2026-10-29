@@ -11,6 +11,7 @@ from alpha_factory import contracts
 from alpha_factory.contracts import (
     BeliefUpdate,
     FactorProposal,
+    GoalProposals,
     LLMModel,
     ProposalBatch,
     Reflection,
@@ -85,6 +86,10 @@ EXAMPLES: dict[type[LLMModel], tuple[dict[str, Any], list[dict[str, Any]]]] = {
     Reflection: (
         {"summary": "Reversal works at h1.", "updates": [BELIEF_UPDATE]},
         [{"summary": "x", "updates": [BELIEF_UPDATE] * 11}],
+    ),
+    GoalProposals: (
+        {"goals": [GOAL]},
+        [{"goals": []}, {"goals": [GOAL] * 4}, {"goals": [{**GOAL, "budget_trials": 5}]}],
     ),
     ResearchGoal: (
         GOAL,

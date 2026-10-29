@@ -188,3 +188,19 @@ def test_sandbox_requires_the_embargo_between_holdout_and_sealed_test() -> None:
             sealed_test=DateRange(start=date(2022, 10, 1), end=date(2022, 12, 31)),
         )
     assert tight  # keep the helper used
+
+
+def test_frozen_library_hash_ignores_the_freeze_time_but_not_the_content() -> None:
+    from alpha_factory.contracts import CombinerSpec, FrozenLibrary, LibFactor
+
+    def lib(day: int, expr: str = "Neg(Pct($close, 2))") -> FrozenLibrary:
+        return FrozenLibrary(
+            lib_version="lib_v1", sandbox_hash=H,
+            factors=(LibFactor(factor_id="fac_1", canonical_expr=expr, sign=1, horizon="h1"),),
+            combiner=CombinerSpec(kind="rank_average"),
+            frozen_at=datetime(2026, 1, day, tzinfo=UTC),
+        )  # fmt: skip
+
+    assert lib(1).content_hash() == lib(9).content_hash()
+    assert lib(1).content_hash() != lib(1, "Pct($close, 2)").content_hash()
+    assert FrozenLibrary.model_validate_json(lib(1).model_dump_json()) == lib(1)

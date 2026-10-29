@@ -220,6 +220,92 @@
     'type': 'object',
   })
 # ---
+# name: test_json_schema_snapshot[GoalProposals]
+  dict({
+    '$defs': dict({
+      'ResearchGoal': dict({
+        'additionalProperties': False,
+        'description': 'Written by the research manager, approved by you.',
+        'properties': dict({
+          'budget_trials': dict({
+            'maximum': 500,
+            'minimum': 20,
+            'title': 'Budget Trials',
+            'type': 'integer',
+          }),
+          'families': dict({
+            'items': dict({
+              'pattern': '^[a-z][a-z0-9_]{2,39}$',
+              'type': 'string',
+            }),
+            'maxItems': 5,
+            'title': 'Families',
+            'type': 'array',
+          }),
+          'horizons': dict({
+            'items': dict({
+              'enum': list([
+                'h1',
+                'h2',
+                'h4',
+              ]),
+              'type': 'string',
+            }),
+            'minItems': 1,
+            'title': 'Horizons',
+            'type': 'array',
+          }),
+          'question': dict({
+            'description': 'The research question this goal answers.',
+            'maxLength': 400,
+            'title': 'Question',
+            'type': 'string',
+          }),
+          'stop_when': dict({
+            'description': 'What result ends this goal early.',
+            'maxLength': 200,
+            'title': 'Stop When',
+            'type': 'string',
+          }),
+          'title': dict({
+            'maxLength': 80,
+            'title': 'Title',
+            'type': 'string',
+          }),
+        }),
+        'required': list([
+          'title',
+          'question',
+          'families',
+          'horizons',
+          'budget_trials',
+          'stop_when',
+        ]),
+        'title': 'ResearchGoal',
+        'type': 'object',
+      }),
+    }),
+    'additionalProperties': False,
+    'description': 'What the research manager returns: one to three candidate goals.',
+    'properties': dict({
+      'goals': dict({
+        'description': 'Distinct goals, most promising first.',
+        'items': dict({
+          '$ref': '#/$defs/ResearchGoal',
+        }),
+        'maxItems': 3,
+        'minItems': 1,
+        'title': 'Goals',
+        'type': 'array',
+      }),
+    }),
+    'required': list([
+      'goals',
+    ]),
+    'title': 'GoalProposals',
+    'type': 'object',
+  })
+# ---
 # name: test_json_schema_snapshot[ProposalBatch]
   dict({
     '$defs': dict({

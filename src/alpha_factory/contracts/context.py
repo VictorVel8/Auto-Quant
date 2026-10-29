@@ -19,6 +19,14 @@ class ResearchGoal(LLMModel):
     stop_when: str = Field(max_length=200, description="What result ends this goal early.")
 
 
+class GoalProposals(LLMModel):
+    """What the research manager returns: one to three candidate goals."""
+
+    goals: list[ResearchGoal] = Field(
+        min_length=1, max_length=3, description="Distinct goals, most promising first."
+    )
+
+
 class BatchDirective(Record):
     """Computed by the bandit, never by an LLM."""
 
