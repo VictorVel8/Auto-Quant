@@ -22,24 +22,22 @@ def holdout_passes(ic_holdout: float, ic_search: float, min_ratio: float) -> boo
     return ic_holdout > 0 and ic_holdout >= min_ratio * ic_search
 
 
-def gate_holdout(
+def holdout_ok(
     result: EvalResult,
     factor: CompiledFactor,
     sandbox: SandboxSpec,
     *,
     data: MarketData | None = None,
     context: EvalContext | None = None,
-) -> EvalResult:
-    """Return `result` unchanged if the holdout agrees, else the same result with HOLDOUT_FAIL."""
-    if result.reason != ReasonCode.ACCEPTED:
-        return result
+) -> bool:
+    """Does the holdout agree with the search result? A bool: the IC itself is dropped."""
     ctx = context
     if ctx is None:
         if data is None:
-            raise ValueError("gate_holdout needs either data or a context")
+            raise ValueError("holdout_ok needs either data or a context")
         ctx = build_context(data, sandbox, zone="holdout")
     if ctx.zone != "holdout":
-        raise ValueError("gate_holdout needs a holdout context")
+        raise ValueError("the holdout check needs a holdout context")
     scores = (
         factor.run(ctx.panel.df)
         .filter(pl.col("session_date").is_between(ctx.start, ctx.end))
@@ -48,5 +46,22 @@ def gate_holdout(
     ics = intraday_ics(scores, ctx.labels, f"y_{result.horizon}", ctx.min_names)
     daily = daily_ic(ics, 1)
     ic_holdout = float(daily["ic"].mean()) if daily.height else 0.0  # type: ignore[arg-type]
-    ok = holdout_passes(ic_holdout, result.ic_mean, sandbox.gate.holdout_min_ic_ratio)
+    return holdout_passes(ic_holdout, result.ic_mean, sandbox.gate.holdout_min_ic_ratio)
+
+
+def gate_holdout(
+    result: EvalResult,
+    factor: CompiledFactor,
+    sandbox: SandboxSpec,
+    *,
+    data: MarketData | None = None,
+    context: EvalContext | None = None,
+) -> EvalResult:
+    """Return `result` unchanged if the holdout agrees, else the same result with HOLDOUT_FAIL.
+
+    Only ACCEPTED results are checked.
+    """
+    if result.reason != ReasonCode.ACCEPTED:
+        return result
+    ok = holdout_ok(result, factor, sandbox, data=data, context=context)
     return result if ok else result.model_copy(update={"reason": ReasonCode.HOLDOUT_FAIL})

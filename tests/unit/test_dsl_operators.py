@@ -225,3 +225,15 @@ def test_condition_runs_alongside_the_score() -> None:
         .sort("tix")
     )
     assert out["cond"].to_list() == [False, False, True, True]
+
+
+def test_bar_field_is_the_bar_of_the_day() -> None:
+    df = one_ticker(WALK)
+    assert score("$bar + $open * 0", df)[:3] == [
+        pytest.approx(0.0),
+        pytest.approx(1.0),
+        pytest.approx(2.0),
+    ]
+    assert score("If($bar <= 3, $close, $open)", df)[4] == pytest.approx(
+        close_of(WALK)[3]
+    )  # open of bar 4

@@ -107,6 +107,7 @@ EXAMPLES = {
     "Gt": "If($open > $close, $ret, -$ret)", "Ge": "If($open >= $close, $ret, -$ret)",
     "Lt": "If($open < $close, $ret, -$ret)", "Le": "If($open <= $close, $ret, -$ret)",
     "dayopen": "$dayopen / $prevclose - 1",
+    "bar": "If($bar <= 3, $ret, -$ret)",
 }  # fmt: skip
 
 

@@ -1,12 +1,12 @@
 """evaluate(): one expression, one horizon, one sign -> an EvalResult with a reason code."""
 
+import math
 from collections.abc import Mapping
 from dataclasses import dataclass
 from itertools import pairwise
 from time import perf_counter
 from typing import Literal
 
-import numpy as np
 import polars as pl
 
 from alpha_factory.backtest.engine import rebalance_bars, simulate
@@ -82,8 +82,10 @@ def turnover(scores: pl.DataFrame, sandbox: SandboxSpec, min_names: int) -> floa
             .agg(pl.len().alias("n"), pl.corr("rs", "ry").alias("c"))
             .filter((pl.col("n") >= min_names) & pl.col("c").is_finite())
         )
-        corrs += r["c"].to_list()
-    return 1.0 - float(np.mean(corrs)) if corrs else 1.0
+        # group_by returns groups in no fixed order and float addition is not associative, so
+        # sort before summing (and sum exactly) for a result that is bit-for-bit reproducible
+        corrs += r.sort("session_date")["c"].to_list()
+    return 1.0 - math.fsum(corrs) / len(corrs) if corrs else 1.0
 
 
 def evaluate(

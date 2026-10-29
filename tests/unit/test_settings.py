@@ -80,3 +80,19 @@ def test_empty_values_from_a_copied_env_example_use_defaults(
     assert s.env == "dev"
     assert s.log_json is False
     assert s.llm_api_key is None
+
+
+def test_logging_survives_the_stream_it_was_configured_with_being_closed() -> None:
+    import io
+    import sys
+
+    from alpha_factory.logging import configure_logging, get_logger
+
+    real = sys.stderr
+    sys.stderr = io.StringIO()
+    try:
+        configure_logging("INFO", json=False)
+    finally:
+        sys.stderr.close()  # what a CLI test runner does when an invocation ends
+        sys.stderr = real
+    get_logger("x").info("still works")  # must not raise "I/O operation on closed file"

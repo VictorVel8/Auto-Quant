@@ -427,8 +427,11 @@ FIELD_DOCS = {
     "ret": "Close-to-close return versus the previous bar (includes the overnight gap at bar 0).",
     "dayopen": "Open of the session's first bar (known from bar 0 onwards).",
     "prevclose": "Close of the previous session's last bar.",
+    "bar": "Bar of the day: 0 is 09:30-10:00, 12 is 15:30-16:00 (known in advance).",
 }
 FIELDS = tuple(FIELD_DOCS)
+# DSL field -> panel column, where they differ (bar is stored as an integer in the panel)
+FIELD_COLUMN = {"bar": "barnum"}
 
 
 def render_docs() -> str:

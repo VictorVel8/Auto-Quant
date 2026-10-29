@@ -6,7 +6,7 @@ universal missing marker: rolling operators with `min_samples=n` return null acr
 
 Columns: tix, tsi (global bar index), sidx (session index), session_date, bar, last_bar, ts,
 open/high/low/close/volume/trades/vwap, raw_close, adj_factor, is_member, rank, tradable, sector,
-and the derived DSL fields ret, dayopen, prevclose.
+and the derived DSL fields ret, dayopen, prevclose, barnum.
 """
 
 from dataclasses import dataclass
@@ -32,7 +32,8 @@ VALUE_COLUMNS = (
     "adj_factor",
 )
 DSL_FIELDS = (
-    "open", "high", "low", "close", "volume", "trades", "vwap", "ret", "dayopen", "prevclose",
+    "open", "high", "low", "close", "volume", "trades", "vwap",
+    "ret", "dayopen", "prevclose", "bar",
 )  # fmt: skip
 
 
@@ -78,6 +79,7 @@ def derive_fields(df: pl.DataFrame) -> pl.DataFrame:
     by_session = ["tix", "sidx"]
     out = df.with_columns(
         (pl.col("close") / pl.col("close").shift(1).over(by_ticker) - 1).alias("ret"),
+        pl.col("bar").cast(pl.Float64).alias("barnum"),
         pl.when(pl.col("bar") == 0)
         .then(pl.col("open"))
         .otherwise(None)

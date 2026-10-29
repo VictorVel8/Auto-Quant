@@ -16,7 +16,7 @@ from alpha_factory.dsl.canonical import canonicalise, to_string, windows_used
 from alpha_factory.dsl.checker import check
 from alpha_factory.dsl.errors import DSLError
 from alpha_factory.dsl.parser import parse
-from alpha_factory.dsl.registry import REGISTRY
+from alpha_factory.dsl.registry import FIELD_COLUMN, REGISTRY
 from alpha_factory.hashing import sha256_canonical
 
 KEY_COLUMNS = ("tix", "tsi", "sidx", "session_date", "bar", "ts", "is_member")
@@ -85,7 +85,7 @@ class _Builder:
             case A.Num():
                 return None
             case A.Field(name):
-                return name
+                return FIELD_COLUMN.get(name, name)
             case A.Call(name, args):
                 key = to_string(node)
                 if key in self.by_key:
