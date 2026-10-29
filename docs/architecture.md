@@ -24,7 +24,7 @@ data or the final evaluator.
 | `synthetic` | Plan 1 | Seeded synthetic market with planted answers |
 | `data` | Plan 2 | Massive flat files to Parquet, universe, manifest, QA; see `data.md` |
 | `sandbox`, `dsl`, `eval`, `backtest` | Plan 3 | Labels, folds, DSL, evaluator, gate, backtester |
-| `research`, `agents`, `orchestrator`, `compute` | Plan 4 | Store, proposers, loop, Modal |
+| `research`, `agents`, `orchestrator`, `compute` | Plan 4 | Store, proposers, loop, Modal; see `research.md` |
 
 Import rules (`.importlinter`): `data`, `sandbox`, `dsl`, `eval` and `backtest` never import
 `agents`, `orchestrator` or `research`; `contracts` never imports `data`, `dsl`, `eval`, `agents`

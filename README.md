@@ -14,7 +14,9 @@ Plan 1 (foundations): repo, config, contracts, synthetic market, CLI.
 Plan 2 (market data): Massive flat files to adjusted 30-min bars, universe, sectors, manifest, QA
 and the `MarketData` read API (see `docs/data.md`).
 Plan 3 (sandbox and evaluation engine): DSL, labels, evaluator, backtester, gate and sealed
-`final_eval` (see `docs/evaluation.md`). No LLM calls yet.
+`final_eval` (see `docs/evaluation.md`).
+Plan 4 (research loop): store, proposers, orchestrator, beliefs, pool, combiners, Modal worker, reports
+(see `docs/research.md`; Modal, a real LLM provider and Discord are written but not yet exercised).
 
 ## Quick start
 

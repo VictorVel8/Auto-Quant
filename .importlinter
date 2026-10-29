@@ -25,3 +25,14 @@ forbidden_modules =
     alpha_factory.eval
     alpha_factory.agents
     alpha_factory.orchestrator
+
+[importlinter:contract:loop-never-sealed]
+name = The research loop never imports the sealed final evaluation
+type = forbidden
+source_modules =
+    alpha_factory.agents
+    alpha_factory.orchestrator
+    alpha_factory.research
+forbidden_modules =
+    alpha_factory.sandbox.final_eval
+    alpha_factory.eval.library
