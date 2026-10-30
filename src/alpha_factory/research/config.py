@@ -2,6 +2,8 @@
 
 from typing import Literal
 
+from pydantic import Field
+
 from alpha_factory.contracts.base import Record
 
 
@@ -49,5 +51,8 @@ class LLMConfig(Record):
     prices_usd_per_mtok: dict[str, dict[str, float]]
     temperature: dict[str, float]
     max_output_tokens: dict[str, int]
+    # Reasoning models count hidden reasoning tokens as output: with no effort set, a call can
+    # spend its whole max_output_tokens thinking and return an empty reply.
+    reasoning_effort: dict[str, str] = Field(default_factory=dict)
     timeout_s: int = 120
     retries: int = 3

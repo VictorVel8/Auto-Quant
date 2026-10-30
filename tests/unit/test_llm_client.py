@@ -83,6 +83,19 @@ def test_a_request_carries_the_strict_schema_and_the_response_is_costed() -> Non
     assert len(call.prompt_hash) == 64 and r.text == '{"goals": []}'
 
 
+def test_reasoning_effort_is_sent_only_when_configured() -> None:
+    seen: list[httpx.Request] = []
+    c, _ = client([ok({"goals": []}), ok({"goals": []})], seen)
+    c.complete_json(role="proposer", system="s", user="u", output_model=GoalProposals)
+    assert "reasoning_effort" not in json.loads(seen[0].content)
+    cfg = CFG.model_copy(update={"reasoning_effort": {"proposer": "low"}})
+    c2, _ = client([ok({"goals": []}), ok({"goals": []})], seen, cfg)
+    c2.complete_json(role="proposer", system="s", user="u", output_model=GoalProposals)
+    c2.complete_json(role="reflector", system="s", user="u", output_model=GoalProposals)
+    assert json.loads(seen[1].content)["reasoning_effort"] == "low"
+    assert "reasoning_effort" not in json.loads(seen[2].content)
+
+
 def test_plain_json_mode_puts_the_schema_in_the_prompt() -> None:
     seen: list[httpx.Request] = []
     c, _ = client([ok("{}")], seen, cfg=CFG.model_copy(update={"supports_json_schema": False}))

@@ -1,4 +1,4 @@
-proposer: template                 # template for P4, llm for P5 onward
+proposer: llm                      # template for P4, llm for P5 onward
 batch_size: 12
 max_batches_per_day: 40
 daily_llm_budget_usd: 2.00         # checked before every PROPOSING

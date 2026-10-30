@@ -123,6 +123,8 @@ class OpenAICompatClient:
             "temperature": self.cfg.temperature[key],
             "max_tokens": self.cfg.max_output_tokens[key],
         }
+        if key in self.cfg.reasoning_effort:
+            body["reasoning_effort"] = self.cfg.reasoning_effort[key]
         if self.cfg.supports_json_schema:
             body["response_format"] = {
                 "type": "json_schema",
