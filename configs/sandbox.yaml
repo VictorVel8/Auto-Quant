@@ -12,7 +12,7 @@ labels:
   - {name: h2, hours: 2}
   - {name: h4, hours: 4}
 folds:                # search folds: the loop sees rounded metrics
-  - {fold_id: F1, train: null, val: {start: 2021-11-24, end: 2022-08-31}}
+  - {fold_id: F1, train: null, val: {start: 2021-11-29, end: 2022-08-31}}
   - {fold_id: F2, train: null, val: {start: 2022-09-01, end: 2023-06-30}}
   - {fold_id: F3, train: null, val: {start: 2023-07-01, end: 2024-04-30}}
   - {fold_id: F4, train: null, val: {start: 2024-05-01, end: 2025-04-30}}

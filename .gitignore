@@ -18,3 +18,6 @@ dist/
 # generated reports and exported libraries are kept out of git
 reports/*.html
 reports/*.json
+
+/doc-uncommited/
+.DS_Store
