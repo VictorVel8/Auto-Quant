@@ -1,9 +1,8 @@
-"""Deploy the sealed final-evaluation app, from your MacBook only:
+"""Deploy the sealed final-evaluation app, from either machine:
     modal deploy --env sealed deploy/modal_sealed.py
 
-The sealed app must live in a separate Modal environment, or a separate workspace if your plan
-cannot restrict a token to one environment. The guarantee holds only if the mini PC's credential
-cannot reach it.
+The sealed app lives in its own Modal environment, apart from the dev app. Both machines hold a
+token that reaches it; the research loop is kept away by the import contracts, not by the token.
 """
 
 import modal

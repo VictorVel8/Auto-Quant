@@ -52,6 +52,9 @@ Deeper docs: `docs/architecture.md`, `data.md`, `evaluation.md`, `research.md`, 
 - `sandbox.yaml`, `data.yaml` and the sealed packages are edited by the owner, not by agents,
   unless asked. Changing either changes the sandbox/dataset hash and invalidates calibration.
 - Never read `.env`. Never print keys. Do not push without asking.
+- The laptop and the mini PC are interchangeable (invariant 6): same commit, configs and
+  credentials; only `.env` paths differ. Never give a machine a role in code, docs or plans.
+  Each machine has its own research store, and the final-eval ledgers do not see each other.
 
 ## Configuration
 
@@ -92,6 +95,11 @@ before every PROPOSING). In template mode the loop makes no LLM calls.
   12 LLM), 0 accepted. Short-term reversal is real (IC about 0.013, t 4 to 7, stable by fold
   and year) but every variant is `cost_killed` (net Sharpe -1.5 to -5). Template and LLM
   proposals look alike so far. Two other bootstrap goals are pending approval.
+
+## Next
+
+Plans 5 (Part I verdict, Modal), 6 (swing timeframes) and 7 (trainable models) are in
+`docs/plans/`.
 
 ## Not done yet
 

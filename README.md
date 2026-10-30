@@ -28,4 +28,4 @@ uv run pytest
 ```
 
 No market data lives in this repo. Tests and CI use a synthetic market.
-See `docs/` for the architecture, contracts and the five invariants.
+See `docs/` for the architecture, contracts and the six invariants.

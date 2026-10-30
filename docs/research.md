@@ -24,19 +24,24 @@ Import-linter enforces: sealed packages never import the loop, and the loop (`ag
 cp .env.example .env                      # fill in the variables you need
 uv run af goal add goals/bootstrap.yaml   # the three bootstrap goals
 uv run af goal list && uv run af goal approve <id>
-uv run af loop run                        # or: sudo systemctl enable --now alpha-factory-loop
+uv run af loop run                        # on Linux, unattended: deploy/alpha-factory-loop.service
 uv run af loop status
 uv run af report run                      # reports/report_<date>.html
 uv run af lib freeze --combiner rank_average
-uv run af final-eval lib_v1               # from the MacBook, once
+uv run af final-eval lib_v1               # from either machine, once per library
 uv run af lib import-final reports/final_eval_lib_v1.json --lib lib_v1
 ```
 
 `configs/loop.yaml` sets the proposer (`template` first, `llm` for P5), batch size, daily batch
 cap, daily LLM budget, the evaluation backend (`local` or `modal`) and the pool cap.
 `configs/llm.yaml` needs the model ids and prices. Needed variables: `LLM_BASE_URL`,
-`LLM_API_KEY` (LLM), `DISCORD_WEBHOOK_URL` (optional), `MODAL_TOKEN_*` and
-`AF_MODAL_ENVIRONMENT` (Modal).
+`LLM_API_KEY` (LLM), `DISCORD_WEBHOOK_URL` (optional) and `MODAL_TOKEN_*` (Modal).
+
+Both machines use the same `.env` apart from paths (invariant 6). Leave `AF_MODAL_ENVIRONMENT`
+empty: each command then picks its own environment (`dev` for the loop and `publish --kind dev`,
+`sealed` for `final-eval` and `publish --kind full`). Setting it sends every command to that one
+environment. Each machine keeps its own store, so `af loop status` and reports show that
+machine's trials only.
 
 ## Where this build departs from the plan
 
@@ -73,10 +78,10 @@ evaluation through the same scorer; reports; the whole loop through the CLI.
 
 **Not verified, because it needs something this machine does not have:**
 - Modal: the apps import and register their functions offline, but nothing was deployed or run.
-  Whether a token can be restricted to one environment, and that the mini PC's credential cannot
-  invoke the sealed app, must be tested on your account (checkpoint P6).
+  That the loop only ever calls the `dev` environment and `af final-eval` only the `sealed` one
+  must be tested on your account (checkpoint P6).
 - Your LLM provider: whether it accepts strict JSON schemas, real output quality, real cost.
 - Discord delivery (tested against a mock transport only).
 - The systemd unit was written but not installed.
-- 1,000 unattended template trials on the mini PC, the template-versus-LLM comparison and a
+- 1,000 unattended template trials, the template-versus-LLM comparison and a
   real sealed evaluation.

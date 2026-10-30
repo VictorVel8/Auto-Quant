@@ -1,7 +1,6 @@
 """Deploy the dev evaluation app:  modal deploy --env dev deploy/modal_dev.py
 
-Run it from the repository root so the lockfile and configs/ are found. Use a token that is
-restricted to the dev environment: the mini PC must never hold the sealed one.
+Run it from the repository root so the lockfile and configs/ are found, from either machine.
 """
 
 import modal

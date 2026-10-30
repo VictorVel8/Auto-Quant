@@ -1,12 +1,12 @@
 """Modal deployment of the DEV evaluation worker (the sealed side is modal_sealed.py).
 
 Written against modal 1.6. It has NOT been deployed or run: that needs a Modal account and
-credentials, and the dev and sealed tokens must be separate (see docs/research.md).
+credentials (see docs/research.md).
 
 This module is imported by the research loop, so it must not contain or import anything sealed:
 the final evaluation lives in modal_sealed.py, and an import-linter contract keeps it that way.
 
-Two deployments, one boundary, which is a credential the mini PC does not have (the app
+Two deployments in two Modal environments; the loop only ever calls the dev one (the app
 definitions are in deploy/modal_dev.py and deploy/modal_sealed.py):
 
 | | dev | sealed |
@@ -14,7 +14,7 @@ definitions are in deploy/modal_dev.py and deploy/modal_sealed.py):
 | app | alpha-factory-eval | alpha-factory-final |
 | volume | af-data-dev (dev build, calibration) | af-data-full (full build, final-eval ledger) |
 | function | evaluate_batch, pool_loo | final_eval_remote |
-| called from | the orchestrator on the mini PC | `af final-eval` on your MacBook |
+| called from | the orchestrator | `af final-eval` |
 
 The functions take and return JSON strings, so no pydantic class has to exist on the caller's
 image. The worker itself is alpha_factory.compute.worker; nothing here touches the research store.
@@ -157,8 +157,8 @@ def publish_build(
 ) -> str:  # fmt: skip
     """Upload a build (and the null calibration) to the volume for `kind`. Returns the dataset id.
 
-    The dev build goes to af-data-dev from anywhere. The full build is uploaded only from the
-    MacBook, with the sealed credential, to af-data-full (the caller passes that volume's name).
+    The dev build goes to af-data-dev, the full build to af-data-full in the sealed environment
+    (the caller passes that volume's name). Either machine can publish both.
     """
     import modal
 

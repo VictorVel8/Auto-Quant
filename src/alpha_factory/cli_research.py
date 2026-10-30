@@ -34,7 +34,7 @@ def register(app: typer.Typer, data_group: typer.Typer, console: Console, err: C
     def loop_run(
         once: Annotated[bool, typer.Option(help="Run one cycle and exit.")] = False,
     ) -> None:
-        """Run the orchestrator (a systemd service on the mini PC). One loop per store."""
+        """Run the orchestrator. One loop per store; each machine has its own store."""
         from alpha_factory.orchestrator import LoopAlreadyRunningError, LoopLock
         from alpha_factory.research.runtime import build_runtime
 
@@ -388,7 +388,7 @@ def register(app: typer.Typer, data_group: typer.Typer, console: Console, err: C
             str | None, typer.Option(help="Hash of the dev build the sandbox was frozen on.")
         ] = None,
     ) -> None:
-        """Score a frozen library once on the sealed window. Run it from your MacBook."""
+        """Score a frozen library once on the sealed window, from either machine."""
         import os
 
         from alpha_factory.contracts import FinalEvalReport, FinalEvalRequest, FrozenLibrary
@@ -463,7 +463,7 @@ def register(app: typer.Typer, data_group: typer.Typer, console: Console, err: C
     @data_group.command("publish")
     def data_publish(
         kind: Annotated[
-            str, typer.Option(help="dev (full is uploaded only from the MacBook).")
+            str, typer.Option(help="dev or full (full goes to the sealed environment).")
         ] = "dev",
     ) -> None:
         """Upload a build and the null calibration to its Modal volume."""

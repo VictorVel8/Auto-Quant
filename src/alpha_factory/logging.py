@@ -1,4 +1,4 @@
-"""structlog setup: console for people, JSON for the mini PC and Modal."""
+"""structlog setup: console for people, JSON for unattended runs and Modal."""
 
 import logging
 import sys

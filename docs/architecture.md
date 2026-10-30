@@ -5,15 +5,18 @@ expressions in a restricted DSL. Sealed, human-written code evaluates them on hi
 validated evidence accumulates in a research store that steers the next proposals. The design
 follows AQuA (arXiv 2608.12841), with a technically sealed test set and dollar-accurate costs.
 
-## Hosts and the one boundary
+## Machines and the one boundary
 
-- **Mini PC**: always-on orchestrator and research store. The LLM returns only JSON proposals and
-  belief text.
-- **Modal**: fan-out evaluation on train and validation data.
-- **MacBook**: development; only `final_eval` reads the test volume, once per frozen spec.
+- **Laptop and mini PC**: interchangeable (invariant 6). Same commit, configs and credentials;
+  either one builds data, runs the tests, the loop and `final-eval`. Each keeps its own research
+  store. The LLM returns only JSON proposals and belief text.
+- **Modal**: fan-out evaluation on train and validation data (`dev` environment) and the sealed
+  final evaluation (`sealed` environment).
 
 The agent loop can propose and read validation results. It can't reach the data build, the test
-data or the final evaluator.
+data or the final evaluator: the import contracts and `MarketData("full", sealed=True)` enforce
+that in code, on whichever machine runs it. Only `final_eval` reads the sealed window, once per
+frozen library.
 
 ## Packages (`src/alpha_factory/`)
 

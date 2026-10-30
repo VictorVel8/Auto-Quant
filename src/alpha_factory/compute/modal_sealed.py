@@ -1,7 +1,7 @@
 """Modal deployment of the SEALED final evaluation. Never imported by the research loop.
 
 Written against modal 1.6 and NOT deployed or run. The sealed app lives in its own Modal
-environment (or workspace), with a credential that only your MacBook holds.
+environment; `af final-eval` calls it from either machine.
 """
 
 from pathlib import Path

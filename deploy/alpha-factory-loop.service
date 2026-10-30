@@ -1,11 +1,11 @@
-# systemd unit for the research loop on the mini PC.
+# systemd unit for running the research loop unattended on a Linux machine (either one can).
 #
 #   sudo cp deploy/alpha-factory-loop.service /etc/systemd/system/
 #   sudo systemctl daemon-reload && sudo systemctl enable --now alpha-factory-loop
 #   journalctl -u alpha-factory-loop -f
 #
-# Edit User and WorkingDirectory. Secrets and paths come from .env in the working directory
-# (see .env.example); the unit holds none. This machine must hold the DEV Modal token only.
+# Edit User, WorkingDirectory and the uv path for the machine. Secrets and paths come from .env
+# in the working directory (see .env.example); the unit holds none.
 [Unit]
 Description=Alpha Factory research loop
 After=network-online.target

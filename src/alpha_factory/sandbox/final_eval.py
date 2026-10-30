@@ -1,7 +1,8 @@
 """The sealed final evaluation: the only code that reads the sealed window.
 
-Sealed by where it can run, not by discipline: only the MacBook and a sealed Modal volume hold the
-full dataset. Guards run in order before any data loads; the data guard is MarketData itself.
+Sealed in code: the research loop cannot import this module (import-linter), and only this module
+opens the full dataset. Guards run in order before any data loads; the data guard is MarketData
+itself. Each ledger (one per machine, one on the sealed volume) sees only its own history.
 """
 
 import json
