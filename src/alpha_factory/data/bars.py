@@ -60,6 +60,23 @@ def symbols_for_session(
     )
 
 
+def one_symbol_per_instrument(bars: pl.DataFrame) -> pl.DataFrame:
+    """When several symbols map to one instrument in a session, keep the busiest one.
+
+    The vendor shares one share-class FIGI between symbols that trade at the same time (BK and
+    BNY, DOC and PEAK). Keeping both would interleave two unrelated price series under one id, so
+    the symbol with the larger dollar volume that session wins and the other's bars are dropped.
+    Renames do not trigger this: the old and new symbols never trade on the same day.
+    """
+    dv = bars.group_by("ticker_id", "ticker").agg(pl.col("_dv").sum().alias("_sym_dv"))
+    winner = (
+        dv.sort("_sym_dv", "ticker", descending=[True, False])
+        .unique("ticker_id", keep="first", maintain_order=True)
+        .select("ticker_id", "ticker")
+    )
+    return bars.join(winner, on=["ticker_id", "ticker"], how="inner")
+
+
 def aggregate_session(
     raw: pl.LazyFrame,
     session: date,
@@ -130,6 +147,7 @@ def aggregate_session(
     end_local = pl.lit(datetime.combine(session, time(9, 30))) + pl.duration(
         minutes=(pl.col("bar").cast(pl.Int64) + 1) * BAR_MINUTES
     )
+    cs = one_symbol_per_instrument(cs)
     out = (
         cs.with_columns(
             end_local.dt.replace_time_zone(NY)
@@ -144,7 +162,7 @@ def aggregate_session(
 
 
 def _cache_key(raw_size: int, symbols_key: str, cfg: DataConfig) -> str:
-    return f"v2|{raw_size}|{symbols_key}|{cfg.bars.minutes}|{','.join(cfg.types)}"
+    return f"v3|{raw_size}|{symbols_key}|{cfg.bars.minutes}|{','.join(cfg.types)}"
 
 
 def ensure_session_cache(

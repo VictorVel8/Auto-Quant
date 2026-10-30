@@ -6,6 +6,7 @@ from pathlib import Path
 import polars as pl
 
 from alpha_factory.contracts.data import QACheck, QAReport
+from alpha_factory.data.adjust import valid_splits
 from alpha_factory.data.build import read_manifest
 from alpha_factory.data.calendar import TradingCalendar
 from alpha_factory.data.config import DataConfig
@@ -199,13 +200,23 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
         (pl.col("execution_date") > expected_sessions[0]) & (pl.col("execution_date") <= last)
     )
     gaps: list[tuple[float, str]] = []
+    rejected = 0
     if splits.height:
         sb = (
             bars.filter(pl.col("ticker_id").is_in(splits["ticker_id"].to_list()))
-            .select("ticker_id", "session_date", "bar", "open", "close")
+            .select("ticker_id", "session_date", "bar", "open", "close", "raw_close")
             .collect()
         )
-        for row in splits.to_dicts():
+        daily = (
+            sb.sort("ticker_id", "session_date", "bar")
+            .group_by("ticker_id", "session_date", maintain_order=True)
+            .agg(pl.col("raw_close").last())
+        )
+        # Only splits the raw prices confirm are adjusted, so only those can be checked; the
+        # rejected ones (another company that used the symbol, bad vendor rows) are counted.
+        confirmed = valid_splits(daily, splits)
+        rejected = splits.height - confirmed.height
+        for row in confirmed.to_dicts():
             t, d = row["ticker_id"], row["execution_date"]
             tb = sb.filter(pl.col("ticker_id") == t).sort("session_date", "bar")
             before, after = (
@@ -221,7 +232,8 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
             worst[0] <= q.max_split_gap_abs,
             worst[0],
             q.max_split_gap_abs,
-            f"{len(gaps)} splits checked; worst {worst[1] or 'n/a'}",
+            f"{len(gaps)} splits checked, {rejected} rejected by the raw-price check; "
+            f"worst {worst[1] or 'n/a'}",
         )
     )
 

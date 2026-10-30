@@ -23,6 +23,50 @@ FACTOR_SCHEMA: dict[str, pl.DataType | type[pl.DataType]] = {
 }
 
 
+# A split is believed only if the raw price moved by about 1/ratio on its execution date. The
+# tolerance is a factor of two either way: a stock can move that much on the day, but not 46x
+# when the "split" was 20-for-1 (a different company that once used the same symbol).
+SPLIT_TOLERANCE = 2.0
+
+
+def split_validation(daily: pl.DataFrame, splits: pl.DataFrame) -> pl.DataFrame:
+    """Each split with `ok` (raw price agrees with the ratio) and `checked` (we could tell).
+
+    Compares the raw close on the execution date with the previous session's raw close; the
+    price should have changed by about 1/ratio. A split with no prior session in the data cannot
+    be checked and is kept.
+    """
+    prev = daily.select(
+        "ticker_id",
+        pl.col("session_date").alias("execution_date"),
+        pl.col("raw_close").alias("prev_close"),
+    ).sort("execution_date")
+    on_day = daily.select(
+        "ticker_id",
+        pl.col("session_date").alias("execution_date"),
+        pl.col("raw_close").alias("close"),
+    )
+    j = (
+        splits.sort("execution_date")
+        .join_asof(
+            prev, on="execution_date", by="ticker_id", strategy="backward",
+            allow_exact_matches=False, check_sortedness=False,
+        )
+        .join(on_day, on=["ticker_id", "execution_date"], how="left")
+    )  # fmt: skip
+    # price after / price before, times the ratio, is about 1 when the split is real
+    implied = (pl.col("close") / pl.col("prev_close")) * pl.col("ratio")
+    checked = pl.col("prev_close").is_not_null() & pl.col("close").is_not_null()
+    ok = (implied.log().abs() <= pl.lit(SPLIT_TOLERANCE).log()) | ~checked
+    return j.with_columns(ok.alias("ok"), checked.alias("checked"))
+
+
+def valid_splits(daily: pl.DataFrame, splits: pl.DataFrame) -> pl.DataFrame:
+    """The splits the raw prices confirm, with the original columns."""
+    v = split_validation(daily, splits)
+    return v.filter(pl.col("ok")).select(splits.columns)
+
+
 def compute_adj_factors(
     daily: pl.DataFrame, splits: pl.DataFrame, dividends: pl.DataFrame, first_session: date
 ) -> pl.DataFrame:
@@ -30,7 +74,8 @@ def compute_adj_factors(
     daily = daily.select("ticker_id", "session_date", "raw_close").sort("session_date", "ticker_id")
 
     split_events = (
-        splits.filter(pl.col("execution_date") > first_session)
+        valid_splits(daily, splits)
+        .filter(pl.col("execution_date") > first_session)
         .select(
             "ticker_id",
             pl.col("execution_date").alias("date"),

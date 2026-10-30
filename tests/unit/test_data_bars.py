@@ -121,3 +121,23 @@ def test_fractional_volumes_sum_exactly() -> None:
     rows += [("AAA", 9, 59, 1, 1, 1, 1, 1220415.586502)]
     bars, _ = aggregate_session(minutes(DAY, rows), DAY, 13, MAPPING, ("CS",))
     assert abs(bars["volume"][0] - 1220418.486502) < 1e-9
+
+
+def test_two_symbols_sharing_an_instrument_keep_only_the_busier_one() -> None:
+    mapping = pl.DataFrame(
+        {
+            "ticker": ["BIG", "TINY", "SOLO"],
+            "ticker_id": ["id_x", "id_x", "id_s"],
+            "type": ["CS"] * 3,
+        }
+    )
+    rows = [
+        ("BIG", 9, 30, 10, 10, 10, 10, 1000), ("BIG", 9, 31, 10, 10, 10, 10, 1000),
+        ("TINY", 9, 30, 50, 50, 50, 50, 10), ("SOLO", 9, 30, 7, 7, 7, 7, 5),
+    ]  # fmt: skip
+    bars, stats = aggregate_session(minutes(DAY, rows), DAY, 13, mapping, ("CS",))
+    assert sorted(bars["ticker"].to_list()) == ["BIG", "SOLO"]
+    assert bars.group_by("ticker_id", "bar").len()["len"].max() == 1  # no duplicate (id, bar)
+    assert stats.cs_dollar_volume == pytest.approx(
+        10 * 2000 + 50 * 10 + 7 * 5
+    )  # volume is still counted

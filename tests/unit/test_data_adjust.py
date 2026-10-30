@@ -132,3 +132,29 @@ def test_dividends_on_the_same_ex_date_are_one_price_drop() -> None:
     f = compute_adj_factors(daily(CLOSES), SPLITS, two, D[0])
     # C(e-1) = 50 and total cash 2.0, not two compounded factors (50/48.5 * 50/49.5)
     assert f["div_factor"].to_list()[-1] == pytest.approx(50 / 48)
+
+
+def test_a_split_the_raw_prices_do_not_confirm_is_ignored() -> None:
+    """Two companies shared a symbol: a 20-for-1 listed on a day the price rose 47x is not applied."""
+    closes = [100.0, 100.0, 4700.0, 4700.0]  # a 1-for-47 reverse split happened on d3
+    fake = pl.DataFrame(
+        {"ticker_id": ["A", "A"], "execution_date": [D[2], D[2]], "ratio": [1 / 47, 20.0]}
+    )
+    f = compute_adj_factors(daily(closes), fake, DIVS.clear(), D[0])
+    assert f["split_factor"].to_list() == pytest.approx(
+        [1, 1, 1 / 47, 1 / 47]
+    )  # the 20x is dropped
+    adj = [c * a for c, a in zip(closes, f["adj_factor"].to_list(), strict=True)]
+    assert adj == pytest.approx([100, 100, 100, 100])
+
+
+def test_ordinary_moves_pass_and_unchecked_splits_are_kept() -> None:
+    from alpha_factory.data.adjust import split_validation
+
+    # a 2:1 split whose day also moved +30%: price 100 -> 65 is within a factor of two of 50
+    moved = split_validation(daily([100.0, 100.0, 65.0]), SPLITS)
+    assert moved["ok"].to_list() == [True]
+    # a split on the first session of data has no previous close: it cannot be judged, so it stays
+    first = pl.DataFrame({"ticker_id": ["A"], "execution_date": [D[0]], "ratio": [2.0]})
+    v = split_validation(daily(CLOSES), first)
+    assert v["checked"].to_list() == [False] and v["ok"].to_list() == [True]
