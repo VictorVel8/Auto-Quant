@@ -17,7 +17,12 @@ from alpha_factory.contracts.data import QACheck, QAReport
 from alpha_factory.data import DatasetNotReadyError, MarketData, SealedDatasetError
 from alpha_factory.data import build as build_mod
 from alpha_factory.data.build import build_dataset, read_manifest, verify_build
-from alpha_factory.data.config import DataConfig, UniverseConfig
+from alpha_factory.data.config import (
+    DataConfig,
+    KnownCorporateAction,
+    QAConfig,
+    UniverseConfig,
+)
 from alpha_factory.data.layout import DataLayout
 from alpha_factory.data.qa import run_qa
 from alpha_factory.data.reference import build_ref_tables
@@ -400,6 +405,33 @@ def test_qa_catches_unadjusted_split(mutable: DataLayout, raw: tuple[Path, RawAn
                 ),
             )
     assert "split_continuity" in _failed(run_qa(mutable, CFG, "full", write=False))
+
+
+def test_qa_skips_a_listed_corporate_action(
+    mutable: DataLayout, raw: tuple[Path, RawAnswers]
+) -> None:
+    t, d, ratio = raw[1].split
+    tid = ticker_id(mutable, t)
+    b = mutable.current_build("full")
+    assert b is not None
+    for p in (b / "bars_30m").glob("*/part-0.parquet"):
+        if date.fromisoformat(p.parent.name.split("=")[1]) >= d:
+            _rewrite(
+                p,
+                lambda df: df.with_columns(
+                    pl.when(pl.col("ticker_id") == tid)
+                    .then(pl.col(c) / ratio)
+                    .otherwise(pl.col(c))
+                    .alias(c)
+                    for c in ("open", "high", "low", "close", "vwap")
+                ),
+            )
+    listed = KnownCorporateAction(ticker_id=tid, date=d, reason="spin-off the adjustment misses")
+    cfg = CFG.model_copy(update={"qa": QAConfig(known_corporate_actions=(listed,))})
+    report = run_qa(mutable, cfg, "full", write=False)
+    assert "split_continuity" not in _failed(report)
+    detail = next(c.detail for c in report.checks if c.name == "split_continuity")
+    assert "1 known exceptions skipped" in detail
 
 
 def test_qa_catches_dev_diverging_from_full(mutable: DataLayout) -> None:

@@ -26,6 +26,14 @@ class DownloadConfig(Record):
     retries: int = 5
 
 
+class KnownCorporateAction(Record):
+    """An event the adjustment cannot see (a spin-off next to a split), so QA skips its gap."""
+
+    ticker_id: str
+    date: date
+    reason: str
+
+
 class QAConfig(Record):
     max_missing_bar_rate: float = 0.01
     max_thin_bar_share: float = 0.05
@@ -33,6 +41,7 @@ class QAConfig(Record):
     extreme_return_abs: float = 0.30
     max_split_gap_abs: float = 0.25
     max_unmapped_dollar_share: float = 0.005
+    known_corporate_actions: tuple[KnownCorporateAction, ...] = ()
 
 
 class DataConfig(Record):

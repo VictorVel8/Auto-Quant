@@ -49,6 +49,10 @@ unmapped-symbol QA check.
 on a confirmed split, limit 25%) look at universe member-days only: the micro-caps outside the
 top-N are never traded, and their gaps are market behaviour. A failure lists the offending bars or
 splits; fix the data, don't loosen the thresholds.
+`qa.known_corporate_actions` in `data.yaml` lists (ticker_id, date, reason) events the adjustment
+cannot see, such as a spin-off on the day of a split (Enovis, 2022-04-05). `split_continuity` skips
+those and counts them in its detail. The list is part of `data.yaml`, so it is in the params hash.
+The bars of a listed event keep their unadjusted gap.
 
 ## Reading
 

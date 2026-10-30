@@ -21,3 +21,7 @@ qa:
   extreme_return_abs: 0.30
   max_split_gap_abs: 0.25
   max_unmapped_dollar_share: 0.005
+  known_corporate_actions:      # events the adjustment cannot see; QA skips their split gap
+    - ticker_id: BBG001SC04J1
+      date: 2022-04-05
+      reason: "Colfax -> Enovis: 1-for-3 reverse split on the day of the ESAB spin-off (raw price x1.51, not x3); the spin-off is not adjusted"

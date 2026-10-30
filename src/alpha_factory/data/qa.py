@@ -203,6 +203,8 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
     )
     gaps: list[tuple[float, str]] = []
     rejected = 0
+    known = {(k.ticker_id, k.date) for k in q.known_corporate_actions}
+    skipped = 0
     if splits.height:
         sb = (
             bars.filter(pl.col("ticker_id").is_in(splits["ticker_id"].to_list()))
@@ -228,6 +230,9 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
             t, d = row["ticker_id"], row["execution_date"]
             if (t, d) not in member_days:  # a split outside the traded universe is not checked
                 continue
+            if (t, d) in known:  # listed in data.yaml with a reason; counted in the detail
+                skipped += 1
+                continue
             tb = sb.filter(pl.col("ticker_id") == t).sort("session_date", "bar")
             before, after = (
                 tb.filter(pl.col("session_date") < d),
@@ -242,7 +247,8 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
             worst[0] <= q.max_split_gap_abs,
             worst[0],
             q.max_split_gap_abs,
-            f"{len(gaps)} member splits checked, {rejected} rejected by the raw-price check; "
+            f"{len(gaps)} member splits checked, {skipped} known exceptions skipped, "
+            f"{rejected} rejected by the raw-price check; "
             f"worst {worst[1] or 'n/a'}",
         )
     )
