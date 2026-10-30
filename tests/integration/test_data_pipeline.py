@@ -344,6 +344,43 @@ def test_qa_catches_extreme_returns(mutable: DataLayout) -> None:
     assert "extreme_returns" in failed
 
 
+def _jump_from(layout: DataLayout, day: date, member_that_day: bool) -> str:
+    """Triple one instrument's prices on `day` only: a jump into `day` and a drop out of it."""
+    b = layout.current_build("full")
+    assert b is not None
+    first = next((b / "bars_30m").glob(f"session_date={day}/part-0.parquet"))
+    tid = pl.read_parquet(first)["ticker_id"][0]
+    _rewrite(
+        first,
+        lambda df: df.with_columns(
+            pl.when(pl.col("ticker_id") == tid).then(pl.col(c) * 3).otherwise(pl.col(c)).alias(c)
+            for c in ("open", "high", "low", "close", "vwap")
+        ),
+    )
+    if not member_that_day:  # out of the universe on `day` and the session after it
+        for u in sorted((b / "universe").glob("session_date=*/part-0.parquet")):
+            if date.fromisoformat(u.parent.name.split("=")[1]) >= day:
+                _rewrite(u, lambda df: df.filter(pl.col("ticker_id") != tid))
+                break
+        nxt = [
+            u
+            for u in sorted((b / "universe").glob("session_date=*/part-0.parquet"))
+            if date.fromisoformat(u.parent.name.split("=")[1]) > day
+        ][0]
+        _rewrite(nxt, lambda df: df.filter(pl.col("ticker_id") != tid))
+    return tid
+
+
+def test_qa_ignores_extreme_returns_outside_the_universe(mutable: DataLayout) -> None:
+    _jump_from(mutable, date(2024, 12, 12), member_that_day=False)
+    assert "extreme_returns" not in _failed(run_qa(mutable, CFG, "full", write=False))
+
+
+def test_qa_catches_extreme_returns_of_a_member(mutable: DataLayout) -> None:
+    _jump_from(mutable, date(2024, 12, 12), member_that_day=True)
+    assert "extreme_returns" in _failed(run_qa(mutable, CFG, "full", write=False))
+
+
 def test_qa_catches_unadjusted_split(mutable: DataLayout, raw: tuple[Path, RawAnswers]) -> None:
     t, d, ratio = raw[1].split
     tid = ticker_id(mutable, t)

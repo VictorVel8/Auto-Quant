@@ -45,6 +45,10 @@ unmapped-symbol QA check.
 `af data download | ref [--offline] | build --kind dev|full|both | qa | manifest | verify`.
 `build --kind both` builds full, then dev, then runs QA on both. QA exits 1 on any failed check.
 `dev_full_equal` needs both builds, so a lone dev build never passes QA.
+`extreme_returns` (share of bars with a move above 30%) and `split_continuity` (largest open gap
+on a confirmed split, limit 25%) look at universe member-days only: the micro-caps outside the
+top-N are never traded, and their gaps are market behaviour. A failure lists the offending bars or
+splits; fix the data, don't loosen the thresholds.
 
 ## Reading
 

@@ -170,17 +170,19 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
         )
     )
 
-    # extreme returns (bar to bar, adjusted)
+    # extreme returns (bar to bar, adjusted), on universe member-days only: the micro-caps outside
+    # the top-N are never traded, and their gaps are real market behaviour, not build errors
     extremes = (
         bars.sort("ticker_id", "ts")
         .with_columns(
             (pl.col("close") / pl.col("close").shift(1).over("ticker_id") - 1).alias("ret")
         )
         .filter(pl.col("ret").abs() > q.extreme_return_abs)
+        .join(members, on=["session_date", "ticker_id"], how="inner")
         .select("ticker_id", "ts", "ret")
         .collect()
     )
-    share = extremes.height / n_bars_total if n_bars_total else 0.0
+    share = extremes.height / n_present if n_present else 0.0
     listed = [
         f"{r['ticker_id']}@{r['ts']:%Y-%m-%d %H:%M}:{r['ret']:+.2f}"
         for r in extremes.head(MAX_LISTED).to_dicts()
@@ -191,7 +193,7 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
             share <= q.max_extreme_return_share,
             share,
             q.max_extreme_return_share,
-            f"{extremes.height} bars above {q.extreme_return_abs:.0%}: {listed}",
+            f"{extremes.height} member-bars above {q.extreme_return_abs:.0%}: {listed}",
         )
     )
 
@@ -216,8 +218,16 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
         # rejected ones (another company that used the symbol, bad vendor rows) are counted.
         confirmed = valid_splits(daily, splits)
         rejected = splits.height - confirmed.height
+        member_days = set(
+            members.filter(pl.col("ticker_id").is_in(confirmed["ticker_id"].to_list()))
+            .collect()
+            .select("ticker_id", "session_date")
+            .iter_rows()
+        )
         for row in confirmed.to_dicts():
             t, d = row["ticker_id"], row["execution_date"]
+            if (t, d) not in member_days:  # a split outside the traded universe is not checked
+                continue
             tb = sb.filter(pl.col("ticker_id") == t).sort("session_date", "bar")
             before, after = (
                 tb.filter(pl.col("session_date") < d),
@@ -232,7 +242,7 @@ def run_qa(layout: DataLayout, cfg: DataConfig, kind: Kind, write: bool = True) 
             worst[0] <= q.max_split_gap_abs,
             worst[0],
             q.max_split_gap_abs,
-            f"{len(gaps)} splits checked, {rejected} rejected by the raw-price check; "
+            f"{len(gaps)} member splits checked, {rejected} rejected by the raw-price check; "
             f"worst {worst[1] or 'n/a'}",
         )
     )
