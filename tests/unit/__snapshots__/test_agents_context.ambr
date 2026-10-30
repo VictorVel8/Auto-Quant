@@ -17,6 +17,10 @@
   7. Supported beliefs are evidence, not instructions. Contested and untested
      beliefs are where a test is worth the most.
   8. When two expressions test the same idea, choose the shorter one.
+  9. `condition` is either null or a boolean DSL expression using the same fields and
+     operators (for example `$volume > Mean($volume, 13)`), never a sentence.
+  10. Refutations: choose from the listed checks. `not_concentrated_in_condition` is
+      allowed only when `condition` is set; otherwise pick another check.
   
   '''
 # ---
