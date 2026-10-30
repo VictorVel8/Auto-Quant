@@ -435,7 +435,8 @@ def eval_null(
 
 @evaluate.command("canary")
 def eval_canary() -> None:
-    """Leakage canary: a deliberately leaky feature must score high and be flagged LOOKAHEAD."""
+    """Leakage canaries: both leaky features must be flagged LOOKAHEAD; the forward-return one must
+    also score above 5x the null floor."""
     from alpha_factory.eval.calibration import CANARY_MULTIPLE, load_calibration, run_canary
 
     settings = Settings()
@@ -446,15 +447,18 @@ def eval_canary() -> None:
         raise typer.Exit(1)
     report = run_canary(ctx, data, cal.ic_floor["h1"])
     console.print(
-        f"canary IC {report.ic:+.4f} vs null floor {report.floor:.4f}: {report.ratio:.1f}x"
+        f"AQuA canary (volume fraction): IC {report.ic:+.4f} vs null floor {report.floor:.4f}: "
+        f"{report.ratio:.1f}x; flagged LOOKAHEAD: {report.flagged_lookahead} "
+        f"(a high IC is not required of this one)"
     )
     console.print(
-        f"above {CANARY_MULTIPLE:.0f}x the floor: {report.scores_high}; "
-        f"flagged LOOKAHEAD: {report.flagged_lookahead}"
+        f"forward-return canary: IC {report.leak_ic:+.4f}: {report.leak_ratio:.1f}x; "
+        f"above {CANARY_MULTIPLE:.0f}x the floor: {report.leak_scores_high}; "
+        f"flagged LOOKAHEAD: {report.leak_flagged_lookahead}"
     )
-    if not (report.scores_high and report.flagged_lookahead):
+    if not report.passed:
         err.print(
-            "[red]the canary did not behave like a leak: the pipeline cannot be trusted yet[/red]"
+            "[red]a canary did not behave like a leak: the pipeline cannot be trusted yet[/red]"
         )
         raise typer.Exit(1)
 

@@ -133,13 +133,41 @@ def canary_feature(panel: Panel) -> pl.DataFrame:
     )  # fmt: skip
 
 
+def leak_canary_feature(panel: Panel, bars_ahead: int) -> pl.DataFrame:
+    """A certain leak: the return over the next `bars_ahead` bars of the same session.
+
+    Not expressible in the DSL either. Unlike the AQuA canary it leaks the thing being predicted,
+    so it must score far above the null floor on any data, however volume behaves.
+    """
+    ahead = pl.col("close").shift(-bars_ahead).over(["tix", "sidx"]) / pl.col("close") - 1
+    return panel.df.select(
+        "tix", "tsi", "ts", "session_date", "bar", "sidx", "is_member",
+        pl.when(pl.col("is_member")).then(ahead).alias("score"),
+    )  # fmt: skip
+
+
 @dataclass(frozen=True)
 class CanaryReport:
-    ic: float  # mean daily IC of the leaky feature at the checked horizon
+    """Two leaky features, two jobs.
+
+    The AQuA canary (volume-fraction) must be flagged LOOKAHEAD; its IC is reported but need not
+    be high, because it leaks future volume and volume may say little about returns. The
+    forward-return canary must be flagged AND score above 5x the null floor.
+    """
+
+    ic: float  # AQuA canary: mean daily IC at the checked horizon
     floor: float  # the null floor it is compared with
     ratio: float
-    scores_high: bool  # ic above 5x the floor
-    flagged_lookahead: bool  # the causality test caught it
+    scores_high: bool  # AQuA canary ic above 5x the floor (informational)
+    flagged_lookahead: bool  # the causality test caught the AQuA canary
+    leak_ic: float = 0.0  # forward-return canary
+    leak_ratio: float = 0.0
+    leak_scores_high: bool = False
+    leak_flagged_lookahead: bool = False
+
+    @property
+    def passed(self) -> bool:
+        return self.flagged_lookahead and self.leak_scores_high and self.leak_flagged_lookahead
 
 
 def run_canary(
@@ -150,8 +178,13 @@ def run_canary(
     causality_sessions: int = 12,
 ) -> CanaryReport:
     """Score the leaky feature and run the causality test on it. Both should fire."""
-    scores = canary_feature(ctx.panel).filter(pl.col("session_date").is_between(ctx.start, ctx.end))
+    in_window = pl.col("session_date").is_between(ctx.start, ctx.end)
+    scores = canary_feature(ctx.panel).filter(in_window)
     ic = horizon_ic(scores.select("tix", "ts", "session_date", "score"), ctx, horizon)
+    spec = next(label for label in ctx.sandbox.labels if label.name == horizon)
+    bars_ahead = round(spec.hours * 60 / ctx.sandbox.bar_minutes)
+    leak = leak_canary_feature(ctx.panel, bars_ahead).filter(in_window)
+    leak_ic = horizon_ic(leak.select("tix", "ts", "session_date", "score"), ctx, horizon)
 
     # causality on the last few scored sessions, rebuilt from raw bars so the noise is real
     sessions = [d for d in data.sessions() if d <= ctx.end][-causality_sessions:]
@@ -168,8 +201,16 @@ def run_canary(
         lambda p: canary_feature(p).select("tix", "ts", "score"),
         bars, universe, data.sectors(), session_bars, cutoff,
     )  # fmt: skip
+    leak_violations = causality_violations(
+        lambda p: leak_canary_feature(p, bars_ahead).select("tix", "ts", "score"),
+        bars, universe, data.sectors(), session_bars, cutoff,
+    )  # fmt: skip
     ratio = abs(ic) / floor if floor > 0 else float("inf")
-    return CanaryReport(ic, floor, ratio, ratio > CANARY_MULTIPLE, violations > 0)
+    leak_ratio = abs(leak_ic) / floor if floor > 0 else float("inf")
+    return CanaryReport(
+        ic, floor, ratio, ratio > CANARY_MULTIPLE, violations > 0,
+        leak_ic, leak_ratio, leak_ratio > CANARY_MULTIPLE, leak_violations > 0,
+    )  # fmt: skip
 
 
 def calibration_path(data_dir: Path, sandbox_hash: str) -> Path:

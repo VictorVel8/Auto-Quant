@@ -47,6 +47,15 @@ statistics against independent implementations, the planted IC on the synthetic 
 
 ## Not verified yet (needs real data)
 
-Null calibration on real data, `-$ret` showing a negative IC at h1, and the leakage canary scoring
-above 5x the null floor: synthetic volume carries no information about returns, so only the
-LOOKAHEAD half of the canary is testable on synthetic data. Timing on 4 years of real bars.
+Timing on 4 years of real bars.
+
+## Real-data results (dataset from 2021-10-29)
+
+- Null floors (99th percentile of |IC|, 1,000 random formulas): h1 0.0105, h2 0.0110, h4 0.0151;
+  label-shuffle mean IC +0.0012 (limit 0.002).
+- Two canaries. The AQuA one (cumulative volume over full-day volume) is flagged LOOKAHEAD but has
+  an IC near zero on real data (-0.0075 at h1): it leaks future volume, and volume says little
+  about returns, so it cannot be required to score high. The forward-return canary leaks the
+  label itself, must be flagged and must score above 5x the floor. `af eval canary` needs both
+  flags and the second score.
+- `-$ret` has an h1 IC of +0.0143, so `$ret` is -0.0143: short-term reversal.

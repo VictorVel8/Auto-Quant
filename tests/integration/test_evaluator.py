@@ -259,9 +259,12 @@ def test_the_leakage_canary_is_flagged_by_the_causality_test(
 ) -> None:
     report = run_canary(ctx, world[2], floor=0.02)
     assert report.flagged_lookahead
-    # Synthetic volume carries no information about returns, so the IC half of the canary
-    # (above 5x the null floor) can only be checked on real data.
+    # Synthetic volume carries no information about returns, so the AQuA canary's IC stays low;
+    # the forward-return canary leaks the label itself and must be flagged and score high.
     assert abs(report.ic) < 0.01
+    assert report.leak_flagged_lookahead
+    assert report.leak_scores_high
+    assert report.passed
 
 
 # --- final evaluation ----------------------------------------------------------------------------
