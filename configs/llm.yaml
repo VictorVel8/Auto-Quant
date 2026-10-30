@@ -1,11 +1,11 @@
 base_url_env: LLM_BASE_URL
 supports_json_schema: true          # verify against your provider first
 models:
-  proposer: <model id>
-  reflector: <model id>
-  manager: <model id>
+  proposer: muse-wonder-1.0
+  reflector: muse-wonder-1.0
+  manager: muse-wonder-1.0
 prices_usd_per_mtok:                 # from your provider's pricing page
-  <model id>: {input: 0.0, output: 0.0}
+  muse-wonder-1.0: {input: 4.0, output: 20.0}
 temperature: {proposer: 0.8, reflector: 0.2, manager: 0.4}
 max_output_tokens: {proposer: 6000, reflector: 2000, manager: 3000}
 timeout_s: 120
